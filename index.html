@@ -3,9 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title></title>
+<title>diffusion territory</title>
+<style>
+body { margin: 0; background: #14161a; color: #c9ced6; font: 13px/1.5 system-ui, sans-serif; }
+#app { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; padding: 16px; }
+#canv { width: 512px; height: 512px; max-width: 100%; background: #000; image-rendering: pixelated; cursor: crosshair; touch-action: none; }
+#panel { display: flex; flex-direction: column; gap: 10px; width: 250px; }
+.row { display: flex; align-items: center; gap: 8px; }
+.row > span { width: 92px; color: #8b939f; }
+.row > input[type=range] { flex: 1; min-width: 0; }
+output { width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+.sw { flex: 1; padding: 6px 4px; border: 1px solid #2f353e; border-radius: 4px; background: #1b1f26; color: #c9ced6; font: inherit; cursor: pointer; }
+.sw.on { border-color: #7d8794; background: #262c35; }
+.sw[data-ch="0"].on { border-color: #f06a6a; }
+.sw[data-ch="1"].on { border-color: #5ad07a; }
+.sw[data-ch="2"].on { border-color: #6a9cf0; }
+#stats { font-variant-numeric: tabular-nums; }
+#hint { margin: 0; color: #6d7583; }
+</style>
 </head>
 <body>
-<canvas id="canv"></canvas>
+<div id="app">
+	<canvas id="canv" width="128" height="128"></canvas>
+	<div id="panel">
+		<div class="row" id="players">
+			<button class="sw" data-ch="0">R</button>
+			<button class="sw" data-ch="1">G</button>
+			<button class="sw" data-ch="2">B</button>
+			<button class="sw" data-ch="-1">erase</button>
+		</div>
+		<label class="row"><span>depletion</span><input id="deplete" type="range" min="0" max="16" step="1"><output id="depleteVal"></output></label>
+		<label class="row"><span>diffusion</span><input id="diffuse" type="range" min="0" max="255" step="1"><output id="diffuseVal"></output></label>
+		<label class="row"><span>cross diffusion</span><input id="crossDiffuse" type="checkbox"></label>
+		<label class="row"><span>intrusion</span><input id="diffuseOther" type="range" min="0" max="255" step="1"><output id="diffuseOtherVal"></output></label>
+		<label class="row"><span>reaction</span><input id="react" type="range" min="0" max="255" step="1"><output id="reactVal"></output></label>
+		<label class="row"><span>steps / frame</span><input id="speed" type="range" min="1" max="8" step="1"><output id="speedVal"></output></label>
+		<div class="row">
+			<button class="sw" id="play">pause</button>
+			<button class="sw" id="stepBtn">step</button>
+			<button class="sw" id="reset">clear</button>
+		</div>
+		<div id="stats"></div>
+		<p id="hint">drag on the map to place a source. 1 2 3 pick color, 0 erase, space pause, s step, c clear.</p>
+	</div>
+</div>
+<script src="sim.js"></script>
+<script src="render.js"></script>
+<script src="input.js"></script>
+<script src="ui.js"></script>
+<script src="main.js"></script>
 </body>
 </html>
