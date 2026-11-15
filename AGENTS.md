@@ -59,7 +59,10 @@ getObj().data().action()
 
 - keep this map updated when ownership changes:
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
-	ui.js — owns <ui concern>. edit for <ui changes>.
+	sim.js — owns grid buffers, rules and their settings. edit for cell model, equations, defaults.
+	render.js — owns canvas pixels and pointer-to-cell mapping. edit for palette, draw pass.
+	input.js — owns pointer painting and keys. edit for brush keys, drag shape.
+	ui.js — owns control panel and readout. edit for controls, ranges, readout format.
 - new code goes to its owner, never appended "because the file is already there". no owner exists -> new file + header + map entry.
 - file > ~500 lines = defect. split by feature within the same plan.
 - moves are pure moves: contiguous ranges, snap to enclosing declarations, no behavior change.
@@ -131,8 +134,8 @@ getObj().data().action()
 
 [rewritten each phase, never accumulated. only constraints that matter right now. delete lines that stopped mattering.]
 
-e.g. splitting ui.js per plan 0.4: dom_smoke after each move, benches at end only.
-e.g. experiment loader derives scripts from index.html and runs them in one VM context.
+plan 0.1 prototype: rule changes get a sim_smoke number first, any wiring change runs dom_smoke.
+mirror case in sim_smoke is the guard for double-buffer bugs: mismatch_cells must stay 0.
 
 ## housekeeping
 
