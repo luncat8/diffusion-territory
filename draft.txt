@@ -1,0 +1,21 @@
+prototype game simulation of cultural influence
+
+128*128 cell map, 
+3 players: R, G, B.
+player can set source of his color on map.
+colors do diffusion.
+in global settings adjustable depletion rate, default 1 of 255 per frame . we use typed int array in this js prototype.
+
+- colors cant diffuse in cells with other colors
+user can switch rules:
+- allow to diffuse to other cell color.
+- set such diffusion rate.
+
+if colors mix - there is reaction  to remove both, rate of such reaction is in global settings.
+
+
+
+minimal css and html
+
+
+
