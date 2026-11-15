@@ -8,8 +8,8 @@ in global settings adjustable depletion rate, default 1 of 255 per frame . we us
 
 - colors cant diffuse in cells with other colors
 user can switch rules:
-- allow to diffuse to other cell color.
-- set such diffusion rate.
+- allow to diffuse to other cell color. Player can choose to what color allow diffusion, if at least 1 allow then both color diffuse to cells with corresponding color.
+- set such diffusion rate to target color.
 
 if colors mix - there is reaction  to remove both, rate of such reaction is in global settings.
 
