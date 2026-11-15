@@ -31,12 +31,22 @@ received from its left/up neighbour loses that mass, a gift arriving later survi
 share from `max(0, cur - decay)` makes `moved <= base`, so next never goes negative, the clamp
 disappears and the pass is order independent.
 
-## saturation is self-bounding (0.1.0)
+## clamp saturation after spread, not inside the spread loop (0.1.1)
 
-`next[j] = min(next[j] + share, MAXV)` clamps at write time, but later gifts in the same pass can
-lift a cell above MAXV, which would overflow a byte in the render. In practice in equals out at
-saturation: a full cell gives away four shares and receives four. Measured peak 3824 with every
-cell a source and rate 255, so the render needs no clamp.
+Clamping `next[j]` to `MAXV` inside `spreadPass` deletes gifts arriving from earlier (up/left)
+neighbours before `j` subtracts its own outflow `moved`. A uniform 10x10 block of `MAXV` at
+`deplete=0, diffuse=255` dropped to `2048` inside and produced `2048` vs `16` across opposite
+corners. `Uint16Array` holds up to `65535` while peak intermediate sum is `MAXV + 4*(MAXV*255>>10)
+= 8144`, so `spreadPass` accumulates `next[j] += share` unclamped and `sourcePass` clamps `<= MAXV`
+afterward; `conserve_saturated` drift and `corner_delta` stay 0.
+
+## 3-way reaction must be simultaneous (0.1.1)
+
+Sequential pairwise subtraction (`RG`, `GB`, `RB`) in `reactPass` consumes `R` and `G` first and
+leaves `B` untouched whenever channels drop below `2 * rate`. Running simultaneous deltas when
+`dr <= vr && dg <= vg && db <= vb` and otherwise stripping `s = min(vr, vg, vb)` first before
+reacting the remaining pair up to `rate - (s >> 1)` keeps integer arithmetic exact and invariant
+under R/G/B permutation.
 
 ## node smoke of classic scripts without a browser (0.1.0)
 

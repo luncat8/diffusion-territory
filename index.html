@@ -8,11 +8,19 @@
 body { margin: 0; background: #14161a; color: #c9ced6; font: 13px/1.5 system-ui, sans-serif; }
 #app { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; padding: 16px; }
 #canv { width: 512px; height: 512px; max-width: 100%; background: #000; image-rendering: pixelated; cursor: crosshair; touch-action: none; }
-#panel { display: flex; flex-direction: column; gap: 10px; width: 250px; }
+#panel { display: flex; flex-direction: column; gap: 8px; width: 268px; }
 .row { display: flex; align-items: center; gap: 8px; }
-.row > span { width: 92px; color: #8b939f; }
+.row > span { width: 84px; color: #8b939f; }
 .row > input[type=range] { flex: 1; min-width: 0; }
 output { width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+.sub { color: #8b939f; font-size: 12px; margin-top: 2px; }
+.cross-box { display: flex; flex-direction: column; gap: 5px; }
+.pair { display: flex; align-items: center; gap: 4px; width: 58px; cursor: pointer; }
+.pair input { margin: 0; }
+.c0 { color: #f06a6a; font-weight: 600; }
+.c1 { color: #5ad07a; font-weight: 600; }
+.c2 { color: #6a9cf0; font-weight: 600; }
+input:disabled, input:disabled + output { opacity: 0.35; }
 .sw { flex: 1; padding: 6px 4px; border: 1px solid #2f353e; border-radius: 4px; background: #1b1f26; color: #c9ced6; font: inherit; cursor: pointer; }
 .sw.on { border-color: #7d8794; background: #262c35; }
 .sw[data-ch="0"].on { border-color: #f06a6a; }
@@ -34,8 +42,15 @@ output { width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
 		</div>
 		<label class="row"><span>depletion</span><input id="deplete" type="range" min="0" max="16" step="1"><output id="depleteVal"></output></label>
 		<label class="row"><span>diffusion</span><input id="diffuse" type="range" min="0" max="255" step="1"><output id="diffuseVal"></output></label>
-		<label class="row"><span>cross diffusion</span><input id="crossDiffuse" type="checkbox"></label>
-		<label class="row"><span>intrusion</span><input id="diffuseOther" type="range" min="0" max="255" step="1"><output id="diffuseOtherVal"></output></label>
+		<div class="sub">cross diffusion (either allows → both)</div>
+		<div class="cross-box">
+			<div class="row"><label class="pair"><input id="allow01" type="checkbox"><b class="c0">R</b>→<b class="c1">G</b></label><input id="rate01" type="range" min="0" max="255" step="1"><output id="rate01Val"></output></div>
+			<div class="row"><label class="pair"><input id="allow02" type="checkbox"><b class="c0">R</b>→<b class="c2">B</b></label><input id="rate02" type="range" min="0" max="255" step="1"><output id="rate02Val"></output></div>
+			<div class="row"><label class="pair"><input id="allow10" type="checkbox"><b class="c1">G</b>→<b class="c0">R</b></label><input id="rate10" type="range" min="0" max="255" step="1"><output id="rate10Val"></output></div>
+			<div class="row"><label class="pair"><input id="allow12" type="checkbox"><b class="c1">G</b>→<b class="c2">B</b></label><input id="rate12" type="range" min="0" max="255" step="1"><output id="rate12Val"></output></div>
+			<div class="row"><label class="pair"><input id="allow20" type="checkbox"><b class="c2">B</b>→<b class="c0">R</b></label><input id="rate20" type="range" min="0" max="255" step="1"><output id="rate20Val"></output></div>
+			<div class="row"><label class="pair"><input id="allow21" type="checkbox"><b class="c2">B</b>→<b class="c1">G</b></label><input id="rate21" type="range" min="0" max="255" step="1"><output id="rate21Val"></output></div>
+		</div>
 		<label class="row"><span>reaction</span><input id="react" type="range" min="0" max="255" step="1"><output id="reactVal"></output></label>
 		<label class="row"><span>steps / frame</span><input id="speed" type="range" min="1" max="8" step="1"><output id="speedVal"></output></label>
 		<div class="row">

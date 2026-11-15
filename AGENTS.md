@@ -134,8 +134,8 @@ getObj().data().action()
 
 [rewritten each phase, never accumulated. only constraints that matter right now. delete lines that stopped mattering.]
 
-plan 0.1 prototype: rule changes get a sim_smoke number first, any wiring change runs dom_smoke.
-mirror case in sim_smoke is the guard for double-buffer bugs: mismatch_cells must stay 0.
+plan 0.1.1 (per-color cross diffusion): rule changes verify conserve_saturated, pair_isolation,
+asym_rate, react3_sym, and mirror in sim_smoke; wiring/UI changes verify dom_smoke.
 
 ## housekeeping
 

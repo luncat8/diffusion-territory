@@ -2,7 +2,8 @@
 // edit for: control set, ranges, readout format
 
 const STATS_MS = 200;
-const RANGES = ["deplete", "diffuse", "diffuseOther", "react", "speed"];
+const RANGES = ["deplete", "diffuse", "react", "speed"];
+const PAIRS = [[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]];
 
 let elPlay = null;
 let elStats = null;
@@ -19,6 +20,7 @@ function uiInit() {
 	elPlay.addEventListener("click", uiToggleRun);
 	$("stepBtn").addEventListener("click", () => simStep());
 	$("reset").addEventListener("click", () => simReset());
+	tPrev = performance.now();
 }
 
 // slider ids mirror settings keys, so one binder covers every rule knob
@@ -34,14 +36,31 @@ function bindRange(key) {
 }
 
 function bindCross() {
-	const el = $("crossDiffuse"), rate = $("diffuseOther");
-	const sync = () => {
-		settings.crossDiffuse = el.checked;
-		rate.disabled = !el.checked;
-	};
-	el.checked = settings.crossDiffuse;
-	sync();
-	el.addEventListener("change", sync);
+	for (let i = 0; i < PAIRS.length; i++) {
+		const c = PAIRS[i][0], t = PAIRS[i][1];
+		const key = "" + c + t;
+		const chk = $("allow" + key), rng = $("rate" + key), out = $("rate" + key + "Val");
+		chk.checked = settings.crossAllow[c][t];
+		rng.value = settings.crossRate[c][t];
+		out.textContent = rng.value;
+		chk.addEventListener("change", () => {
+			settings.crossAllow[c][t] = chk.checked;
+			syncCross();
+		});
+		rng.addEventListener("input", () => {
+			settings.crossRate[c][t] = +rng.value;
+			out.textContent = rng.value;
+		});
+	}
+	syncCross();
+}
+
+function syncCross() {
+	const allow = settings.crossAllow;
+	for (let i = 0; i < PAIRS.length; i++) {
+		const c = PAIRS[i][0], t = PAIRS[i][1];
+		$("rate" + c + t).disabled = !(allow[c][t] || allow[t][c]);
+	}
 }
 
 function bindPlayers() {
@@ -70,7 +89,8 @@ function uiStats() {
 	const t = performance.now();
 	frameCount++;
 	if (t < tNext) return;
-	const fps = frameCount * 1000 / (t - tPrev);
+	const dt = t - tPrev;
+	const fps = dt > 0 ? frameCount * 1000 / dt : 0;
 	frameCount = 0;
 	tPrev = t;
 	tNext = t + STATS_MS;

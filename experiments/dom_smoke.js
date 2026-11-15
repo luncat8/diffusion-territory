@@ -113,16 +113,43 @@ sandbox.window.handlers.keydown({ key: " ", preventDefault() {} });
 const running = S.running;
 steps(10);
 sandbox.window.handlers.keydown({ key: "s", preventDefault() {} });
-console.log("dom=keys running=" + running + " play_label=" + els.get("play").textContent);
+canv.dispatch("pointerdown", { clientX: 128, clientY: 128, button: 0, shiftKey: false, pointerId: 3 });
+canv.dispatch("pointerup", { pointerId: 3 });
+console.log("dom=keys running=" + running + " play_label=" + els.get("play").textContent + " paused_g=" + g.count[1]);
 
 const deplete = els.get("deplete");
 deplete.value = "4";
 deplete.dispatch("input");
-const cross = els.get("crossDiffuse");
-cross.checked = true;
-cross.dispatch("change");
-console.log("dom=settings deplete=" + S.deplete + " cross=" + S.crossDiffuse +
-	" intrusion_disabled=" + els.get("diffuseOther").disabled + " deplete_label=" + els.get("depleteVal").textContent);
+const r01Pre = els.get("rate01").disabled;
+const r10Pre = els.get("rate10").disabled;
+const a01 = els.get("allow01");
+const a10 = els.get("allow10");
+a01.checked = true;
+a01.dispatch("change");
+const r01On = els.get("rate01").disabled;
+const r10On = els.get("rate10").disabled;
+const r02On = els.get("rate02").disabled;
+const r01 = els.get("rate01");
+r01.value = "120";
+r01.dispatch("input");
+const r10 = els.get("rate10");
+r10.value = "40";
+r10.dispatch("input");
+console.log("dom=settings deplete=" + S.deplete + " deplete_label=" + els.get("depleteVal").textContent +
+	" r01_pre=" + r01Pre + " r10_pre=" + r10Pre +
+	" allow_rg=" + S.crossAllow[0][1] + " r01_dis=" + r01On + " r10_dis=" + r10On + " r02_dis=" + r02On +
+	" rate_rg=" + S.crossRate[0][1] + " rate_gr=" + S.crossRate[1][0] +
+	" r01_lbl=" + els.get("rate01Val").textContent + " r10_lbl=" + els.get("rate10Val").textContent);
+a10.checked = true;
+a10.dispatch("change");
+a01.checked = false;
+a01.dispatch("change");
+const r01Keep = els.get("rate01").disabled;
+const r10Keep = els.get("rate10").disabled;
+a10.checked = false;
+a10.dispatch("change");
+console.log("dom=cross_sym keep_r01=" + r01Keep + " keep_r10=" + r10Keep +
+	" off_r01=" + els.get("rate01").disabled + " off_r10=" + els.get("rate10").disabled);
 
 sandbox.window.handlers.keydown({ key: "c", preventDefault() {} });
 steps(2);

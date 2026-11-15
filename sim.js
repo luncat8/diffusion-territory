@@ -17,8 +17,16 @@ const settings = {
 	speed: 4,
 	deplete: 1,
 	diffuse: 128,
-	crossDiffuse: false,
-	diffuseOther: 64,
+	crossAllow: [
+		[false, false, false],
+		[false, false, false],
+		[false, false, false]
+	],
+	crossRate: [
+		[0, 64, 64],
+		[64, 0, 64],
+		[64, 64, 0]
+	],
 	react: 8
 };
 
@@ -41,8 +49,15 @@ function decayPass(cur, next, d) {
 }
 
 // occupancy is sampled from cur, so two colors may claim the same empty cell in one frame
-function spreadPass(cur, next, a, b, d, rate, rateOther) {
-	const cross = settings.crossDiffuse;
+function spreadPass(c, cur, next, a, b, d, rate) {
+	const c1 = (c + 1) % 3;
+	const c2 = (c + 2) % 3;
+	const allow = settings.crossAllow;
+	const cross = settings.crossRate;
+	const can1 = allow[c][c1] || allow[c1][c];
+	const can2 = allow[c][c2] || allow[c2][c];
+	const r1 = cross[c][c1];
+	const r2 = cross[c][c2];
 	let i = 0;
 	for (let y = 0; y < N; y++) {
 		const up = (y > 0 ? y - 1 : N - 1) * N;
@@ -59,13 +74,18 @@ function spreadPass(cur, next, a, b, d, rate, rateOther) {
 			let moved = 0;
 			for (let k = 0; k < 4; k++) {
 				const j = nb4[k];
-				const other = a[j] > 0 || b[j] > 0;
-				if (other && !cross) continue;
-				const share = (v * (other ? rateOther : rate)) >> 10;
+				const ha = a[j] > 0;
+				const hb = b[j] > 0;
+				let r = rate;
+				if (ha || hb) {
+					if ((ha && !can1) || (hb && !can2)) continue;
+					if (ha && hb) r = r1 < r2 ? r1 : r2;
+					else r = ha ? r1 : r2;
+				}
+				const share = (v * r) >> 10;
 				if (share === 0) continue;
 				moved += share;
-				const t = next[j] + share;
-				next[j] = t > MAXV ? MAXV : t;
+				next[j] += share;
 			}
 			next[i] -= moved;
 		}
@@ -73,20 +93,41 @@ function spreadPass(cur, next, a, b, d, rate, rateOther) {
 }
 
 function reactPass(r, g, b, rate) {
+	if (rate === 0) return;
 	for (let i = 0; i < CELLS; i++) {
 		let vr = r[i], vg = g[i], vb = b[i];
-		if (vr > 0 && vg > 0) { const d = Math.min(vr, vg, rate); vr -= d; vg -= d; }
-		if (vg > 0 && vb > 0) { const d = Math.min(vg, vb, rate); vg -= d; vb -= d; }
-		if (vr > 0 && vb > 0) { const d = Math.min(vr, vb, rate); vr -= d; vb -= d; }
+		if ((vr > 0) + (vg > 0) + (vb > 0) < 2) continue;
+		let pairRate = rate;
+		if (vr > 0 && vg > 0 && vb > 0) {
+			const rg = Math.min(vr, vg, rate);
+			const gb = Math.min(vg, vb, rate);
+			const rb = Math.min(vr, vb, rate);
+			const dr = rg + rb, dg = rg + gb, db = rb + gb;
+			if (dr <= vr && dg <= vg && db <= vb) {
+				r[i] = vr - dr; g[i] = vg - dg; b[i] = vb - db;
+				continue;
+			}
+			// drain the shared 3-way core first so low-concentration overlaps stay channel-symmetric
+			const s = Math.min(vr, vg, vb);
+			vr -= s; vg -= s; vb -= s;
+			pairRate = rate - (s >> 1);
+		}
+		if (vr > 0 && vg > 0) { const d = Math.min(vr, vg, pairRate); vr -= d; vg -= d; }
+		if (vg > 0 && vb > 0) { const d = Math.min(vg, vb, pairRate); vg -= d; vb -= d; }
+		if (vr > 0 && vb > 0) { const d = Math.min(vr, vb, pairRate); vr -= d; vb -= d; }
 		r[i] = vr; g[i] = vg; b[i] = vb;
 	}
 }
 
 function sourcePass(src, ch) {
+	const r = ch[0], g = ch[1], b = ch[2];
 	for (let i = 0; i < CELLS; i++) {
+		// clamp after spread so saturated cells receive all 4 neighbours before capping
+		if (r[i] > MAXV) r[i] = MAXV;
+		if (g[i] > MAXV) g[i] = MAXV;
+		if (b[i] > MAXV) b[i] = MAXV;
 		const s = src[i];
-		if (s === 0) continue;
-		ch[s - 1][i] = MAXV;
+		if (s > 0) ch[s - 1][i] = MAXV;
 	}
 }
 
@@ -111,11 +152,11 @@ function countPass(r, g, b) {
 
 function simStep() {
 	const ch = grid.ch, back = grid.back;
-	const rate = settings.diffuse, rateOther = settings.diffuseOther;
+	const rate = settings.diffuse;
 	const decay = settings.deplete << SHIFT;
 	for (let c = 0; c < 3; c++) {
 		decayPass(ch[c], back[c], decay);
-		spreadPass(ch[c], back[c], ch[(c + 1) % 3], ch[(c + 2) % 3], decay, rate, rateOther);
+		spreadPass(c, ch[c], back[c], ch[(c + 1) % 3], ch[(c + 2) % 3], decay, rate);
 	}
 	sourcePass(grid.src, back);
 	reactPass(back[0], back[1], back[2], settings.react << SHIFT);
@@ -126,6 +167,10 @@ function simStep() {
 		grid.ch[c] = back[c];
 		grid.back[c] = cur;
 	}
+}
+
+function simCount() {
+	countPass(grid.ch[0], grid.ch[1], grid.ch[2]);
 }
 
 function simPaint(i, c) {
@@ -147,7 +192,7 @@ function simReset() {
 		grid.ch[c].fill(0);
 		grid.back[c].fill(0);
 	}
-	countPass(grid.ch[0], grid.ch[1], grid.ch[2]);
+	simCount();
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -155,6 +200,6 @@ if (typeof module !== "undefined" && module.exports) {
 		N, CELLS, SHIFT, MAXV,
 		CH_R, CH_G, CH_B, CH_NONE,
 		settings, grid,
-		simStep, simPaint, simClear, simReset
+		simStep, simCount, simPaint, simClear, simReset
 	};
 }
