@@ -197,3 +197,16 @@ let sumTerr = 0;
 for (let i = 0; i < G.cells; i++) sumTerr += G.ch[0][i];
 console.log("case=cap_territory max=0 per_cell=200 r_cells=" + G.count[0] + " total=" + sumTerr.toFixed(6));
 S.maxColor = Infinity; S.territoryCap = 0;
+
+// rates above 255 run as ceil(rate/255) stable rounds: far field fills ~rounds times faster
+sim.simReset();
+S.deplete = 0; S.diffuse = 1020; S.react = 0;
+clearCross(64);
+for (let y = 0; y < N; y++) sim.simPaint(at(64, y), sim.CH_R);
+run(2000);
+let minFill = MAXV, maxFill = 0;
+for (let i = 0; i < G.cells; i++) {
+	if (G.ch[0][i] < minFill) minFill = G.ch[0][i];
+	if (G.ch[0][i] > maxFill) maxFill = G.ch[0][i];
+}
+console.log("case=rounds_fill rate=1020 frames=2000 min=" + minFill.toFixed(6) + " max=" + maxFill.toFixed(6));
