@@ -62,10 +62,10 @@ getObj().data().action()
 	settings.js — owns rule values. edit for defaults.
 	field.js — owns planar Q12.12 cell grid, analysis, per-cell & total-mass caps. edit for storage, cap formula.
 	source.js — owns source cells and injection. edit for paint/seed/inject rules.
-	gas.js — owns staggered gas dynamics, unmixable/mixable transport, reaction, depletion. edit for gas physics.
+	gas.js — owns staggered gas dynamics, per-pair transport, pair reaction, depletion. edit for gas physics.
 	tick.js — owns step order. edit for phase order.
 	view.js — owns canvas, cursor readout, source marks, stats. edit for color/UI of the map.
-	controls.js — owns panel widgets. edit for sliders, mixing rule switch, and labels.
+	controls.js — owns panel widgets and pair labels. edit for sliders, pair checkboxes, and labels.
 	loop.js — owns pacing and stats cadence. edit for frame loop.
 	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
 	prototype/ — archived diffusion + Brownian + multigrid V-cycle prototype.
@@ -141,7 +141,7 @@ getObj().data().action()
 plans 0.2.0, 0.2.1 (archive/). constraints:
 	planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
 	after sim change: checks.js; after UI/boot change: dom-smoke.js.
-latest: mixable Maxwell-Stefan transport, pairwise+triple quartic reaction, total-mass Boyle cap (`maxMass`), and grouped mixing UI landed in 0.2.1.
+latest: per-pair mix and reaction permissions with per-pair rates (`mixMask`/`mixRate`, `reactMask`/`reactRate`, pairs RG/RB/GB + all) landed in 0.2.2.
 
 ## housekeeping
 

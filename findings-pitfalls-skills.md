@@ -123,4 +123,57 @@ cells ever share an aggregate.
 - Painting a source inside existing enemy territory traps foreign gas in the source cross unless `pickDonorSpecies`
   expels `!(src[d] & (1 << f))` species first, clearing the source to `255` with exact foreign mass conservation.
 
+## per-pair masks: bits name pairs, not species
+
+A 3-pair rule set tempts one mask type for two meanings. Reading a pair mask with `mask & 3`, `mask & 5`,
+`mask & 6` (species pairs) makes every source carry bits the check does not expect: `3 & 5 = 1`, so all
+three "pair" tests were true for a single-pair mask and the whole solver ran with every pair enabled.
+That failure is silent — the map still moves, only the rule is ignored. Keep two vocabularies apart:
+pair index bits (`1 << p`, mask `0..7`) for permissions and rates, species bitmask (`1 << c`, `3/5/6`)
+only inside the per-direction allow table. A directional acceptance check (open one pair, assert mass
+crosses in that pair and not in the other two) catches it in one run; a symmetry or mass check does not.
+
+## a blocked direction must be a valve, not a low permeability
+
+Scaling face conductance by `k * (1 - g)` with `g` growing on foreign density reads naturally as "less
+permeable", but at `g = 1` it only halves the conduct and keeps the damped momentum. A disabled pair
+then leaks at ~1/4 of an open pair — visible as slow but complete penetration. Two consequences:
+
+- To make a rule absolute, branch in the acceleration: clear the flux when both directions are
+  blocked, keep only the allowed sign when one is. The wall then holds exactly.
+- Do not implement "blocked" as "this face carries no flux at all": a face whose two sides both hold
+  gas is a gate, so zeroing it turns the neighbour into a vacuum and pressure suction pulls the donor
+  across the "wall" (measured: whole regions swapped owners). The blocked side must keep the damped
+  push term; only the mass flux is zero.
+
+Also: a pair that is permitted with `rate = 0` must be treated as wall, not as unmixable. Switching
+the solver mode on `rate > 0` made the sim flip between bulk and per-species transport per frame, and
+the per-species path let blocked species drift in through `outScale` redistribution.
+
+## a per-pair reaction needs a per-pair draw, not sorted channels
+
+"Two largest react, then the smallest against the larger two" is a good 3-player default when all
+pairs share one rate. With per-pair rules it is wrong: the top-two draw uses the pair of those two
+channels, so enabling only `RB` and letting G sit above both makes R and B react through the RG rate,
+and a single enabled pair drains two colors that never touched each other. Draw per present pair
+(`min(a, b) * share`), then scale all draws by one common factor when a channel would be overdrawn.
+
+Reaction strength: square the slider (`share = (rate / 100)^2`). Linear scaling has no thin-front
+regime: measured on a `200/200` pair, `rate = 1` keeps `199.98` per frame and still drains the pair
+in ~98 frames, while `rate = 5` clears most of a 128² map — everything between is a cliff. Squared,
+`1` removes `0.02 %` of the minimum per frame (a seconds-long fade), `5` removes `0.25 %` (a wide
+glowing overlap), `25` removes `6 %` (a bright seam), `100` annihilates overlap in one frame.
+
+## DOM panel: ids must be unique per widget, and handlers must capture the node
+
+Two traps when a panel grows to grouped widgets:
+
+- `id = group + '-' + pair` for both the checkbox and the slider of the same pair silently produces
+  two nodes with one id; `getElementById` returns the first, so the slider handler you thought you
+  bound is never the node the test pokes. Suffix the kind (`-on` for checkboxes) or key by role.
+- A range handler of the form `input.addEventListener('input', () => edit(def, p, input, val))` is
+  safe only if `input` is the parameter of the loop that created it. Reading `+input.value` through a
+  stale `def` (`def` replaced by a node, `Settings[def.key]` then `undefined`) throws inside the
+  listener, which jsdom reports as silence rather than a failing check. Assert the setting changed
+  after dispatching the event, not just that the event listener was attached.
 

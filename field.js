@@ -114,5 +114,7 @@ const Field = {
 };
 
 if (typeof module !== 'undefined') {
-	module.exports = { Field, FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF };
+	module.exports = {
+		Field, FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF,
+	};
 }

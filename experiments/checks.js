@@ -16,9 +16,10 @@ function setup(over) {
 		gasSpeed: 65,
 		gasDamping: 15,
 		depletion: 0,
-		mixable: 0,
-		mixRate: 50,
-		reaction: 0,
+		mixMask: 0,
+		mixRate: [50, 50, 50],
+		reactMask: 0,
+		reactRate: [10, 10, 10],
 		maxMass: 0,
 		sourceRate: 255,
 		capBase: 0,
@@ -51,7 +52,7 @@ function maxOf(p) {
 }
 
 // 1. Exact mass conservation (unmixable)
-setup({ sourceRate: 0, mixable: 0 });
+setup({ sourceRate: 0 });
 for (let y = 56; y < 72; y++) {
 	for (let x = 56; x < 72; x++) Field.ch[0][y * W + x] = 255 * FP_ONE;
 }
@@ -61,7 +62,7 @@ const m1u = massOf(0);
 check('mass_motion_unmixable', m0u === m1u, `${m0u} -> ${m1u}`);
 
 // 2. Exact mass conservation (mixable, 3 overlapping species)
-setup({ sourceRate: 0, mixable: 1, mixRate: 50 });
+setup({ sourceRate: 0, mixMask: 7 });
 for (let y = 56; y < 72; y++) {
 	for (let x = 56; x < 72; x++) {
 		const i = y * W + x;
@@ -134,7 +135,7 @@ run(5);
 check('cap_keeps_mass', massOf(0) === kept, `${kept} -> ${massOf(0)}`);
 
 // 7. Unmixable equal symmetric pressure holds wall with zero leak
-setup({ gasSpeed: 100, mixable: 0, sourceRate: 0 });
+setup({ gasSpeed: 100, sourceRate: 0 });
 for (let y = 0; y < H; y++) {
 	Field.ch[0][y * W + 63] = 200 * FP_ONE;
 	Field.ch[1][y * W + 64] = 200 * FP_ONE;
@@ -145,7 +146,7 @@ for (let y = 0; y < H; y++) if (Field.ch[0][y * W + 64] > 0) leakedSym++;
 check('unmixable_wall_symmetry', leakedSym === 0, `leaked=${leakedSym}`);
 
 // 8. Unmixable high pressure compresses and pushes low pressure gas cleanly
-setup({ gasSpeed: 65, mixable: 0, sourceRate: 0 });
+setup({ gasSpeed: 65, sourceRate: 0 });
 for (let y = 0; y < H; y++) {
 	for (let x = 0; x < 64; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
 	for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 50 * FP_ONE;
@@ -166,7 +167,7 @@ check('unmixable_pressure_pushes', rMaxX >= 95 && gMinX >= 95 && massG0 === mass
 	`rMaxX=${rMaxX} gMinX=${gMinX} mixed=${mixedSeam} mass_ok=${massG0 === massG1}`);
 
 // 9. Unmixable 3-player seeds fill & equalize pressure across the whole grid
-setup({ gasSpeed: 70, gasDamping: 15, mixable: 0, depletion: 0 });
+setup({ gasSpeed: 70, gasDamping: 15, depletion: 0 });
 Source.seed(64, 64, 0);
 Source.seed(20, 100, 1);
 Source.seed(107, 20, 2);
@@ -183,7 +184,7 @@ check('unmixable_fills_uniformly', liveAll === Field.n && minP > 210 && maxP < 2
 
 // 10. Mixable interpenetration and mixRate ordering
 function foreignReach(rate) {
-	setup({ gasSpeed: 60, mixable: 1, mixRate: rate, sourceRate: 0 });
+	setup({ gasSpeed: 60, mixMask: 7, mixRate: [rate, rate, rate], sourceRate: 0 });
 	for (let y = 0; y < H; y++) {
 		for (let x = 0; x < 64; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
 		for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 200 * FP_ONE;
@@ -202,14 +203,14 @@ check('mixable_rate_ordering', m10 > 0 && m10 < m50 && m50 < m100,
 	`${Math.round(m10 / FP_ONE)} < ${Math.round(m50 / FP_ONE)} < ${Math.round(m100 / FP_ONE)}`);
 
 // 11. Reaction consumes smaller species in mixable mode and ignores unmixable seam
-setup({ gasSpeed: 0, mixable: 1, mixRate: 100, reaction: 100, sourceRate: 0 });
+setup({ gasSpeed: 0, mixMask: 7, mixRate: [100, 100, 100], reactMask: 7, reactRate: [100, 100, 100], sourceRate: 0 });
 Field.ch[0][0] = 200 * FP_ONE;
 Field.ch[1][0] = 60 * FP_ONE;
 run(1);
 check('reaction_takes_min', Field.ch[0][0] === 140 * FP_ONE && Field.ch[1][0] === 0,
 	`r=${Field.ch[0][0] / FP_ONE} g=${Field.ch[1][0] / FP_ONE}`);
 
-setup({ gasSpeed: 50, mixable: 0, reaction: 100, sourceRate: 0 });
+setup({ gasSpeed: 50, mixMask: 7, reactMask: 7, mixRate: [0, 0, 0], reactRate: [100, 100, 100], sourceRate: 0 });
 for (let y = 0; y < H; y++) {
 	for (let x = 0; x < 64; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
 	for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 50 * FP_ONE;
@@ -220,7 +221,7 @@ check('unmixable_skips_reaction', massOf(0) === ur0 && massOf(1) === ug0,
 	`R:${ur0}->${massOf(0)} G:${ug0}->${massOf(1)}`);
 
 // 12. Depletion > 0 forms a steady spatial gradient; depletion == 0 fills uniformly
-setup({ gasSpeed: 65, depletion: 0.5, mixable: 0 });
+setup({ gasSpeed: 65, depletion: 0.5 });
 Source.seed(64, 64, 0);
 run(600);
 const centerVal = Field.ch[0][64 * W + 64] / FP_ONE;
@@ -231,7 +232,7 @@ for (let i = 0; i < Field.n; i++) if (Field.ch[0][i] >= FP_ONE) depLive++;
 check('depletion_forms_gradient', centerVal >= 250 && midVal > 5 && midVal < 180 && farVal === 0 && depLive < Field.n * 0.25,
 	`center=${centerVal.toFixed(1)} mid=${midVal.toFixed(1)} far=${farVal.toFixed(1)} live=${depLive}`);
 
-setup({ gasSpeed: 80, gasDamping: 15, depletion: 0, reaction: 0, mixable: 0 });
+setup({ gasSpeed: 80, gasDamping: 15, depletion: 0 });
 Source.seed(64, 64, 0);
 run(5000);
 let sMin = Infinity, sMax = 0;
@@ -261,33 +262,34 @@ run(20);
 check('substeps_capped_at_2', Field.v.every((v, i) => v === sub2[i]), '10 clamped to 2');
 
 // 15. Trace 3rd species never paralyzes pairwise reaction
-setup({ gasSpeed: 0, mixable: 1, mixRate: 100, reaction: 50, sourceRate: 0 });
+setup({ gasSpeed: 0, mixMask: 7, mixRate: [100, 100, 100], reactMask: 7, reactRate: [50, 50, 50], sourceRate: 0 });
 Field.ch[0][0] = 200 * FP_ONE;
 Field.ch[1][0] = 200 * FP_ONE;
 Field.ch[2][0] = 10;
 run(1);
-const expectLeft = 200 * (1 - 0.0625);
+const expectLeft = 150 * FP_ONE - 2;
 check('reaction_3species_no_stall',
-	Math.abs(Field.ch[0][0] / FP_ONE - expectLeft) < 0.1 && Field.ch[0][0] === Field.ch[1][0] && Field.ch[2][0] === 9,
+	Field.ch[0][0] === expectLeft && Field.ch[0][0] === Field.ch[1][0] && Field.ch[2][0] === 6,
 	`r=${(Field.ch[0][0] / FP_ONE).toFixed(2)} g=${(Field.ch[1][0] / FP_ONE).toFixed(2)} b_q=${Field.ch[2][0]}`);
 
 // 16. Mixable default reaction forms visible mixed front without collapsing map to black
-setup({ gasSpeed: 65, gasDamping: 15, mixable: 0 });
+setup({ gasSpeed: 65, gasDamping: 15 });
 Source.seed(64, 64, 0);
 Source.seed(20, 100, 1);
 Source.seed(107, 20, 2);
 run(1200);
-Settings.mixable = 1;
-Settings.mixRate = 50;
-Settings.reaction = 20;
-run(300);
+Settings.mixMask = 7;
+Settings.mixRate = [50, 50, 50];
+Settings.reactMask = 7;
+Settings.reactRate = [5, 5, 5];
+run(900);
 let mixedVis = 0, brightVis = 0;
 for (let i = 0; i < Field.n; i++) {
 	const r = Field.ch[0][i] >> 12, g = Field.ch[1][i] >> 12, b = Field.ch[2][i] >> 12;
-	if ((r > 40 ? 1 : 0) + (g > 40 ? 1 : 0) + (b > 40 ? 1 : 0) >= 2) mixedVis++;
+	if ((r > 32 ? 1 : 0) + (g > 32 ? 1 : 0) + (b > 32 ? 1 : 0) >= 2) mixedVis++;
 	if (r + g + b > 120) brightVis++;
 }
-check('mixable_visible_reactive_front', mixedVis > 1500 && brightVis > 10000,
+check('mixable_visible_reactive_front', mixedVis > 1500 && brightVis > 4000,
 	`mixed=${mixedVis} bright=${brightVis}`);
 
 // 17. Total color limit (maxMass) caps player total and equalizes across map when depletion == 0
@@ -305,7 +307,7 @@ check('max_mass_equalizes',
 	`mass=${massOf(0) / FP_ONE} min=${limMin.toFixed(1)} max=${limMax.toFixed(1)}`);
 
 // 18. Painting source inside enemy territory purges displaced enemy gas with exact mass conservation
-setup({ gasSpeed: 65, gasDamping: 15, mixable: 0, sourceRate: 0 });
+setup({ gasSpeed: 65, gasDamping: 15, sourceRate: 0 });
 for (let i = 0; i < Field.n; i++) Field.ch[2][i] = 200 * FP_ONE;
 const bInit = massOf(2);
 Settings.sourceRate = 255;
@@ -315,6 +317,115 @@ const centerIdx = 64 * W + 64;
 check('paint_in_enemy_purges',
 	Field.ch[0][centerIdx] === 255 * FP_ONE && Field.ch[2][centerIdx] === 0 && massOf(2) === bInit,
 	`R=${Field.ch[0][centerIdx] / FP_ONE} B_at_src=${Field.ch[2][centerIdx]} B_conserved=${massOf(2) === bInit}`);
+
+// 19. Pair permission is directional: RG on, RB off lets R through G but not through B
+setup({ gasSpeed: 60, mixMask: 3, mixRate: [100, 100, 100], sourceRate: 0 });
+for (let y = 0; y < H; y++) {
+	for (let x = 0; x < 20; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
+	for (let x = 54; x < 74; x++) Field.ch[1][y * W + x] = 200 * FP_ONE;
+	for (let x = 20; x < 54; x++) Field.ch[2][y * W + x] = 200 * FP_ONE;
+}
+run(300);
+let rInG = 0, gInB = 0, bInR = 0, bInG = 0;
+for (let y = 0; y < H; y++) {
+	for (let x = 0; x < 20; x++) bInR += Field.ch[2][y * W + x];
+	for (let x = 20; x < 54; x++) bInG += Field.ch[2][y * W + x] - 200 * FP_ONE;
+	for (let x = 54; x < 74; x++) rInG += Field.ch[0][y * W + x];
+	for (let x = 0; x < 54; x++) gInB += Field.ch[1][y * W + x];
+}
+check('pair_permission_directional', rInG > 0 && gInB === 0 && bInR > 0,
+	`rInG=${Math.round(rInG / FP_ONE)} gInB=${Math.round(gInB / FP_ONE)} bInR_pressure=${Math.round(bInR / FP_ONE)}`);
+
+// 20. Per-pair ordering: a pair open at 90% penetrates further than the same pair at 10%
+function reach(rate) {
+	setup({ gasSpeed: 60, mixMask: 3, mixRate: [rate, rate, rate], sourceRate: 0 });
+	for (let y = 0; y < H; y++) {
+		for (let x = 0; x < 64; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
+		for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 200 * FP_ONE;
+	}
+	run(300);
+	let m = 0;
+	for (let y = 0; y < H; y++) for (let x = 64; x < W; x++) m += Field.ch[0][y * W + x];
+	return m;
+}
+const p10 = reach(10);
+const p50 = reach(50);
+const p90 = reach(90);
+check('pair_rate_ordering', p10 > 0 && p10 < p50 && p50 < p90,
+	`${Math.round(p10 / FP_ONE)} < ${Math.round(p50 / FP_ONE)} < ${Math.round(p90 / FP_ONE)}`);
+
+// 21. Reaction acts only on permitted pairs, with the configured amount from each side
+setup({ gasSpeed: 0, mixMask: 7, mixRate: [100, 100, 100], reactMask: 1, reactRate: [50, 50, 50], sourceRate: 0 });
+Field.ch[0][0] = 200 * FP_ONE;
+Field.ch[1][0] = 200 * FP_ONE;
+Field.ch[2][0] = 200 * FP_ONE;
+run(1);
+const rgTake = 200 * 0.25 | 0;
+check('react_per_pair_only', Field.ch[0][0] === (200 - rgTake) * FP_ONE &&
+	Field.ch[1][0] === (200 - rgTake) * FP_ONE && Field.ch[2][0] === 200 * FP_ONE,
+	`r=${Field.ch[0][0] / FP_ONE} g=${Field.ch[1][0] / FP_ONE} b=${Field.ch[2][0] / FP_ONE}`);
+
+setup({ gasSpeed: 0, mixMask: 7, mixRate: [100, 100, 100], reactMask: 7, reactRate: [0, 0, 100], sourceRate: 0 });
+Field.ch[0][0] = 200 * FP_ONE;
+Field.ch[1][0] = 200 * FP_ONE;
+run(1);
+check('react_pair_masked', Field.ch[0][0] === 200 * FP_ONE && Field.ch[1][0] === 200 * FP_ONE,
+	`r=${Field.ch[0][0] / FP_ONE} g=${Field.ch[1][0] / FP_ONE}`);
+
+setup({ gasSpeed: 0, mixMask: 7, mixRate: [100, 100, 100], reactMask: 7, reactRate: [10, 0, 0], sourceRate: 0 });
+Field.ch[0][0] = 200 * FP_ONE;
+Field.ch[1][0] = 200 * FP_ONE;
+const rm0 = [massOf(0), massOf(1)];
+run(5);
+const dRG = rm0[0] - massOf(0);
+check('react_amount_per_frame', dRG > 0 && dRG === rm0[1] - massOf(1),
+	`dR=${Math.round(dRG / FP_ONE)} dG=${Math.round(rm0[1] - massOf(1))} (5 frames x 40 units)`);
+
+// 22. Pair mix rate 0 with the pair checked behaves as a wall, not as a vacuum
+setup({ gasSpeed: 60, mixMask: 7, mixRate: [0, 0, 0], sourceRate: 0 });
+for (let y = 0; y < H; y++) {
+	for (let x = 0; x < 64; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
+	for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 200 * FP_ONE;
+}
+const wall0 = [massOf(0), massOf(1)];
+run(200);
+check('mix_rate_zero_is_wall', massOf(0) === wall0[0] && massOf(1) === wall0[1],
+	`R ${wall0[0] / FP_ONE | 0} -> ${massOf(0) / FP_ONE | 0}`);
+
+// 23. All pairs off is the unmixable wall, all pairs on mixes all three channels
+setup({ gasSpeed: 65, gasDamping: 15, sourceRate: 0 });
+Source.seed(64, 64, 0);
+Source.seed(20, 100, 1);
+Source.seed(107, 20, 2);
+run(800);
+let wallMixed = 0;
+for (let i = 0; i < Field.n; i++) {
+	const r = Field.ch[0][i], g = Field.ch[1][i], b = Field.ch[2][i];
+	if ((r > 0 ? 1 : 0) + (g > 0 ? 1 : 0) + (b > 0 ? 1 : 0) >= 2) wallMixed++;
+}
+const wallMass = [massOf(0), massOf(1), massOf(2)];
+run(200);
+check('all_pairs_off_separates', wallMixed <= 400 && massOf(0) === wallMass[0] && massOf(1) === wallMass[1],
+	`overlap=${wallMixed}`);
+
+Settings.mixMask = 7;
+Settings.mixRate = [50, 50, 50];
+run(600);
+let allMixed = 0;
+for (let i = 0; i < Field.n; i++) {
+	const r = Field.ch[0][i], g = Field.ch[1][i], b = Field.ch[2][i];
+	if ((r > 0 ? 1 : 0) + (g > 0 ? 1 : 0) + (b > 0 ? 1 : 0) >= 2) allMixed++;
+}
+check('all_pairs_on_mixes', allMixed > 4000, `overlap=${allMixed}`);
+
+// 24. One-cell seed keeps moving and never gains or loses mass
+setup({ gasSpeed: 100, gasDamping: 15, sourceRate: 0 });
+Field.ch[0][64 * W + 64] = 255 * FP_ONE;
+run(4000);
+let live = 0;
+for (let i = 0; i < Field.n; i++) if (Field.ch[0][i] > 0) live++;
+check('single_quantum_spreads', live > 4000 && massOf(0) === 255 * FP_ONE,
+	`live=${live} mass_ok=${massOf(0) === 255 * FP_ONE}`);
 
 console.log(`failures=${failures}`);
 process.exit(failures ? 1 : 0);

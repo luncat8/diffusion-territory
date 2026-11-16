@@ -24,6 +24,22 @@ user can switch rules:
 
 if colors mix - there is reaction  to remove both, rate of such reaction is in global settings.
 
+
+3 checkboxes rg rb gb to toggle what colors mix and one that toggle all 3 together.
+and something similar for reactions (with reaction speed by pairs)
+
+## 3
+
+next step: per-pair absorb asymmetry (a pair that consumes only one side) and pair-level scoring in `#stats`.
+
+- think in gameplay oriented direction: if player want to claim territory what he use as resource, what in emerging way limit his to use it in all ways in max amount. what possible variants of game implementation.
+
+- what will be next? dynamic source movement or some physics that automatically move and spawn/despawn source areas
+
+
+
+
+
 ==========================
 
 

@@ -149,11 +149,17 @@ const View = {
 		this.ctx.strokeRect(x * s + 0.5, y * s + 0.5, span - 1, span - 1);
 	},
 
+	pairsText(mask, rates) {
+		let s = '';
+		for (let p = 0; p < 3; p++) {
+			if ((mask & (1 << p)) && rates[p] > 0) s += (s ? '/' : '') + View.names[p];
+		}
+		return s || 'none';
+	},
+
 	stats(node) {
-		const mode = Settings.mixable && Settings.mixRate > 0
-			? 'mix ' + Settings.mixRate + '% · react ' + Settings.reaction + '%'
-			: 'unmixable';
-		let s = 'fps ' + Loop.fps + '  (' + mode + ')\n';
+		let s = 'fps ' + Loop.fps + '  (' + View.pairsText(Settings.mixMask, Settings.mixRate) +
+			' · react ' + View.pairsText(Settings.reactMask, Settings.reactRate) + ')\n';
 		for (let p = 0; p < 3; p++) {
 			const mass = Math.round(Field.total[p] / FP_ONE);
 			const lim = Settings.maxMass > 0 ? '/' + (Settings.maxMass * 1000) : '';

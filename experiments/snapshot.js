@@ -84,8 +84,8 @@ function scenario(name, frames, over, seeds) {
 	Field.init(128, 128);
 	Gas.init(128, 128);
 	Object.assign(Settings, {
-		gasSpeed: 65, gasDamping: 15, depletion: 0, mixable: 0, mixRate: 50,
-		reaction: 20, maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
+		gasSpeed: 65, gasDamping: 15, depletion: 0, mixMask: 0, mixRate: [50, 50, 50],
+		reactMask: 0, reactRate: [5, 5, 5], maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
 	}, over);
 	for (const [x, y, p] of seeds) Source.seed(x, y, p);
 	for (let f = 0; f < frames; f++) Tick.run(Settings);
@@ -97,9 +97,10 @@ function scenario(name, frames, over, seeds) {
 }
 
 const seeds = [[64, 64, 0], [20, 100, 1], [107, 20, 2]];
-scenario('unmix_f120', 120, { mixable: 0 }, seeds);
-scenario('unmix_f600', 600, { mixable: 0 }, seeds);
-scenario('unmix_f2400', 2400, { mixable: 0 }, seeds);
-scenario('depletion03', 800, { depletion: 0.3, mixable: 0 }, seeds);
-scenario('mix50_react20', 1800, { mixable: 1, mixRate: 50, reaction: 20 }, seeds);
-scenario('mix100_noreact', 1800, { mixable: 1, mixRate: 100, reaction: 0 }, seeds);
+scenario('unmix_f120', 120, {}, seeds);
+scenario('unmix_f600', 600, {}, seeds);
+scenario('unmix_f2400', 2400, {}, seeds);
+scenario('depletion03', 800, { depletion: 0.3 }, seeds);
+scenario('pairs_rg_only', 1800, { mixMask: 1, mixRate: [100, 100, 100] }, seeds);
+scenario('pairs_all_react5', 1800, { mixMask: 7, reactMask: 7, reactRate: [5, 5, 5] }, seeds);
+scenario('mix100_noreact', 1800, { mixMask: 7, mixRate: [100, 100, 100] }, seeds);

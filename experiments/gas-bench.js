@@ -11,8 +11,8 @@ function benchCase(name, over, frames) {
 	Field.init(W, H);
 	Gas.init(W, H);
 	Object.assign(Settings, {
-		gasSpeed: 50, gasDamping: 20, depletion: 0, mixable: 0, mixRate: 50,
-		reaction: 0, maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
+		gasSpeed: 50, gasDamping: 20, depletion: 0, mixMask: 0, mixRate: [50, 50, 50],
+		reactMask: 0, reactRate: [5, 5, 5], maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
 	}, over);
 	Source.seed(64, 64, 0);
 	Source.seed(20, 100, 1);
@@ -33,8 +33,9 @@ function benchCase(name, over, frames) {
 	console.log(`case=${name} frames=${frames} ms_per_frame=${(ms / frames).toFixed(3)} owned=${Field.owned.join('/')} mixed=${mixed} minP=${minP.toFixed(1)} maxP=${maxP.toFixed(1)}`);
 }
 
-benchCase('unmix_default', { mixable: 0, depletion: 0 }, 1500);
-benchCase('unmix_dep03', { mixable: 0, depletion: 0.3 }, 800);
-benchCase('mix30_react20', { mixable: 1, mixRate: 30, reaction: 20 }, 1200);
-benchCase('mix100_default', { mixable: 1, mixRate: 100, reaction: 0 }, 1200);
-benchCase('unmix_fast', { gasSpeed: 90, gasDamping: 10, mixable: 0 }, 1000);
+benchCase('unmix_default', { mixMask: 0, depletion: 0 }, 1500);
+benchCase('unmix_dep03', { mixMask: 0, depletion: 0.3 }, 800);
+benchCase('mix_all_react5', { mixMask: 7, mixRate: [50, 50, 50], reactMask: 7, reactRate: [5, 5, 5] }, 1200);
+benchCase('mix_rg_only', { mixMask: 1, mixRate: [50, 50, 50] }, 1200);
+benchCase('mix100_noreact', { mixMask: 7, mixRate: [100, 100, 100] }, 1200);
+benchCase('unmix_fast', { gasSpeed: 90, gasDamping: 10 }, 1000);

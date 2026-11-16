@@ -45,8 +45,11 @@ function check(name, ok, value) {
 
 check('boot_scripts', scripts.length === 9, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
-check('sliders', doc.querySelectorAll('#rows input[type=range]').length === 11, `rows=${doc.querySelectorAll('#rows input[type=range]').length}`);
-check('mixable_checkbox', !!doc.getElementById('mixable'), 'present');
+const ranges = doc.querySelectorAll('#rows input[type=range]');
+check('sliders', ranges.length === 15, `rows=${ranges.length}`);
+check('mix_checkboxes', ['mix-all', 'mix-rg-on', 'mix-rb-on', 'mix-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
+check('react_checkboxes', ['react-all', 'react-rg-on', 'react-rb-on', 'react-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
+check('pair_sliders', ['mix-rg', 'mix-rb', 'mix-gb', 'react-rg', 'react-rb', 'react-gb'].every(id => !!doc.getElementById(id)), 'six pair sliders');
 check('player_buttons', doc.querySelectorAll('#players button').length === 3, 'R G B');
 check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length === 15, 'seed sources');
 
@@ -71,18 +74,41 @@ slider.value = '35';
 slider.dispatchEvent(new window.Event('input', { bubbles: true }));
 check('slider_binds', scope('Settings').gasSpeed === 35, `gasSpeed=${scope('Settings').gasSpeed}`);
 
-const mixBox = doc.getElementById('mixable');
-mixBox.checked = true;
-mixBox.dispatchEvent(new window.Event('change', { bubbles: true }));
-check('mixable_binds', scope('Settings').mixable === 1, `mixable=${scope('Settings').mixable}`);
+const rgBox = doc.getElementById('mix-rg-on');
+rgBox.checked = true;
+rgBox.dispatchEvent(new window.Event('change', { bubbles: true }));
+const settings = scope('Settings');
+check('pair_checkbox_binds', settings.mixMask === 1, `mixMask=${settings.mixMask}`);
 
-mixBox.checked = false;
-mixBox.dispatchEvent(new window.Event('change', { bubbles: true }));
-const mixSlider = doc.querySelectorAll('#rows input[type=range]')[3];
+doc.getElementById('mix-gb-on').checked = true;
+doc.getElementById('mix-gb-on').dispatchEvent(new window.Event('change', { bubbles: true }));
+check('pair_checkbox_accumulates', settings.mixMask === 5, `mixMask=${settings.mixMask}`);
+
+const allBox = doc.getElementById('mix-all');
+allBox.checked = true;
+allBox.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('group_toggle_all', settings.mixMask === 7 && doc.getElementById('mix-rg-on').checked, `mixMask=${settings.mixMask}`);
+
+allBox.checked = false;
+allBox.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('group_toggle_none', settings.mixMask === 0 && !doc.getElementById('mix-gb-on').checked, `mixMask=${settings.mixMask}`);
+
+const mixSlider = doc.getElementById('mix-rb');
 mixSlider.value = '65';
 mixSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
-check('mix_slider_auto_enables', scope('Settings').mixable === 1 && mixBox.checked && scope('Settings').mixRate === 65,
-	`mixable=${scope('Settings').mixable} rate=${scope('Settings').mixRate}`);
+check('pair_slider_auto_enables', settings.mixMask === 2 && settings.mixRate[1] === 65,
+	`mixMask=${settings.mixMask} rate=${settings.mixRate.join('/')}`);
+
+const rAll = doc.getElementById('react-all');
+rAll.checked = true;
+rAll.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('react_group_binds', settings.reactMask === 7, `reactMask=${settings.reactMask}`);
+const reactSlider = doc.getElementById('react-rg');
+reactSlider.value = '0';
+reactSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
+doc.getElementById('react-rg-on').checked = false;
+doc.getElementById('react-rg-on').dispatchEvent(new window.Event('change', { bubbles: true }));
+check('react_pair_unchecked', settings.reactMask === 6 && doc.getElementById('react-rg-on').checked === false, `reactMask=${settings.reactMask}`);
 
 doc.getElementById('pause').click();
 check('pause_toggles', scope('Settings').paused === 1, doc.getElementById('pause').textContent);

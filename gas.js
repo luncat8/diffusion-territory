@@ -1,5 +1,5 @@
-// owns: staggered-grid compressible gas dynamics, reaction, and depletion
-// edit for: wave speed/damping mapping, mixable/unmixable transport, or sinks
+// owns: staggered-grid compressible gas dynamics, per-pair mix/reaction rules, and depletion
+// edit for: wave speed/damping mapping, pair transport, reaction, or sinks
 
 const Gas = {
 	w: 0,
@@ -7,7 +7,11 @@ const Gas = {
 	n: 0,
 	k: 0,
 	damp: 0,
+	invRef: 0,
 	lastMode: -1,
+	allow: [7, 7, 7],
+	pq: [1, 1, 1, 1, 1, 1, 1, 1, 1],
+	rq: [0, 0, 0],
 	bx: null,
 	by: null,
 	bax: null,
@@ -24,6 +28,7 @@ const Gas = {
 		this.w = w;
 		this.h = h;
 		this.n = w * h;
+		this.invRef = 1 / (32 * FP_ONE);
 		this.bx = new Float64Array(this.n);
 		this.by = new Float64Array(this.n);
 		this.bax = [new Float64Array(this.n), new Float64Array(this.n), new Float64Array(this.n)];
@@ -76,19 +81,38 @@ const Gas = {
 		this.k = Math.min(kMax, (Math.min(100, s.gasSpeed) / 100) * 0.34);
 	},
 
+	// off pairs stay unmixable (wall + drag); mixing is on when any pair is permitted, a permitted
+	// pair with rate 0 is still on so the wall stays physical instead of turning into a vacuum
+	rules(s) {
+		const q = this.pq, a = this.allow;
+		const mm = s.mixMask & 7, rr = s.mixRate;
+		const on0 = mm & 1, on1 = mm & 2, on2 = mm & 4;
+		const r0 = on0 ? rr[0] / 100 : 0;
+		const r1 = on1 ? rr[1] / 100 : 0;
+		const r2 = on2 ? rr[2] / 100 : 0;
+		q[1] = q[3] = r0;
+		q[2] = q[6] = r1;
+		q[5] = q[7] = r2;
+		a[0] = 1 | (on0 ? 2 : 0) | (on1 ? 4 : 0);
+		a[1] = 2 | (on0 ? 1 : 0) | (on2 ? 4 : 0);
+		a[2] = 4 | (on1 ? 1 : 0) | (on2 ? 2 : 0);
+		return mm;
+	},
+
 	step(s) {
 		this.updateParams(s);
+		const live = this.rules(s);
 		if (this.k <= 0) {
 			this.reset();
 			return;
 		}
-		const mix = s.mixable && s.mixRate > 0 ? 1 : 0;
+		const mix = live ? 1 : 0;
 		if (this.lastMode !== -1 && this.lastMode !== mix) {
 			if (mix) this.clearBulk();
 			else this.clearSpecies();
 		}
 		this.lastMode = mix;
-		if (mix) this.stepMixable(this.k, this.damp, s.mixRate / 100);
+		if (mix) this.stepMixable(this.k, this.damp);
 		else this.stepUnmixable(this.k, this.damp);
 	},
 
@@ -273,60 +297,44 @@ const Gas = {
 		this.sharpen(cap);
 	},
 
-	accelMixFace(a, b, j, rc, ptot, outSum, damp, dSpan, k, kSpan, perm, invRef) {
+	// per-pair conductivity enters the acceleration through q = mixRate / 100 of the receiving species:
+	// kf = k * q, dampf = damp + (0.75 - damp) * (1 - q). Directions a species may not enter are a hard
+	// valve (both blocked: no flux at all), so a disabled pair is a wall and never a vacuum
+	accelMixFace(a, b, j, rc, ptot, outSum, damp, k, c) {
 		const ra = rc[a], rb = rc[b];
 		let fl = j[a];
 		if (!ra && !rb && !fl) return;
-		const other = (ptot[a] - ra) + (ptot[b] - rb);
-		const f = perm < 1 && other > 0 ? (other * invRef < 1 ? other * invRef : 1) : 0;
-		fl = (damp + dSpan * f) * fl + (k + kSpan * f) * (ra - rb);
+		const ma = Field.dom[a], mb = Field.dom[b];
+		const alw = this.allow[c];
+		const okAB = mb === NO_COLOR || (alw >> mb) & 1;
+		const okBA = ma === NO_COLOR || (alw >> ma) & 1;
+		if (!okAB && !okBA) {
+			j[a] = 0;
+			return;
+		}
+		const oa = ptot[a] - ra, ob = ptot[b] - rb;
+		const other = oa + ob;
+		if (!other) {
+			fl = damp * fl + k * (ra - rb);
+		} else {
+			const f = other * this.invRef < 1 ? other * this.invRef : 1;
+			const q = this.pq;
+			const qa = ma === NO_COLOR ? 1 : q[c * 3 + ma];
+			const qb = mb === NO_COLOR ? 1 : q[c * 3 + mb];
+			const g = f * (oa * (1 - qa) + ob * (1 - qb)) / other;
+			fl = damp * (1 - 0.25 * g) * fl + k * (1 - g) * (ra - rb);
+		}
+		if (!okAB && fl > 0) fl = 0;
+		else if (!okBA && fl < 0) fl = 0;
 		j[a] = fl;
 		if (fl > 0) outSum[a] += fl;
 		else if (fl < 0) outSum[b] -= fl;
 	},
 
-	// symmetric Maxwell-Stefan drag + conductance across foreign-occupied faces avoids tie jumps and checkerboards
-	stepMixable(k, damp, perm) {
-		const w = this.w, h = this.h, n = this.n;
-		const c0 = Field.ch[0], c1 = Field.ch[1], c2 = Field.ch[2];
-		const cap = Field.cap, ptot = this.ptot;
-		const outSum = this.outSum, outScale = this.outScale;
-		const dSpan = damp * (0.75 + 0.25 * perm) - damp;
-		const kSpan = k * perm - k;
-		const invRef = 1 / (32 * FP_ONE);
-
-		for (let i = 0; i < n; i++) ptot[i] = c0[i] + c1[i] + c2[i];
-		for (let c = 0; c < 3; c++) {
-			const rc = Field.ch[c], cp = cap[c];
-			const jx = this.sx[c], jy = this.sy[c], ax = this.sax[c], ay = this.say[c];
-			outSum.fill(0);
-			for (let y = 0; y < h; y++) {
-				const row = y * w, hasY = y + 1 < h;
-				for (let x = 0; x < w; x++) {
-					const i = row + x;
-					if (x + 1 < w) this.accelMixFace(i, i + 1, jx, rc, ptot, outSum, damp, dSpan, k, kSpan, perm, invRef);
-					if (hasY) this.accelMixFace(i, i + w, jy, rc, ptot, outSum, damp, dSpan, k, kSpan, perm, invRef);
-				}
-			}
-			for (let i = 0; i < n; i++) {
-				const have = rc[i];
-				outScale[i] = (outSum[i] > have && outSum[i] > 0) ? have / outSum[i] : 1;
-			}
-			for (let y = 0; y < h; y++) {
-				const row = y * w, hasY = y + 1 < h;
-				for (let x = 0; x < w; x++) {
-					const i = row + x;
-					if (x + 1 < w && jx[i]) this.applyMixEdge(i, i + 1, i, jx, ax, rc, cp, outScale);
-					if (hasY && jy[i]) this.applyMixEdge(i, i + w, i, jy, ay, rc, cp, outScale);
-				}
-			}
-		}
-	},
-
-	applyMixEdge(a, b, e, j, acc, rc, cp, outScale) {
-		const fl = j[e] * (j[e] > 0 ? outScale[a] : outScale[b]);
-		j[e] = fl;
-		const want = fl + acc[e];
+	sendMix(a, b, j, acc, rc, cp, outScale) {
+		const fl = j[a] * (j[a] > 0 ? outScale[a] : outScale[b]);
+		j[a] = fl;
+		const want = fl + acc[a];
 		let m = want | 0;
 		let capped = false;
 		if (m > rc[a]) { m = rc[a]; capped = true; }
@@ -340,40 +348,83 @@ const Gas = {
 				if (-m > room) { m = room > 0 ? -room : 0; capped = true; }
 			}
 		}
-		acc[e] = capped ? 0 : want - m;
+		acc[a] = capped ? 0 : want - m;
 		if (m) {
 			rc[a] -= m;
 			rc[b] += m;
 		}
 	},
 
-	// quartic curve spans wide glowing reactive overlap (15..35) to instant contact annihilation (100)
+	// one shared per-species face flux: opposite species cannot tie against each other through it
+	stepMixable(k, damp) {
+		const w = this.w, h = this.h, n = this.n;
+		const c0 = Field.ch[0], c1 = Field.ch[1], c2 = Field.ch[2];
+		const cap = Field.cap, ptot = this.ptot;
+		const outSum = this.outSum, outScale = this.outScale;
+
+		for (let i = 0; i < n; i++) ptot[i] = c0[i] + c1[i] + c2[i];
+		for (let c = 0; c < 3; c++) {
+			const rc = c === 0 ? c0 : (c === 1 ? c1 : c2);
+			const cp = cap[c];
+			const jx = this.sx[c], jy = this.sy[c], ax = this.sax[c], ay = this.say[c];
+			outSum.fill(0);
+			for (let y = 0; y < h; y++) {
+				const row = y * w, hasY = y + 1 < h;
+				for (let x = 0; x < w; x++) {
+					const i = row + x;
+					if (x + 1 < w) this.accelMixFace(i, i + 1, jx, rc, ptot, outSum, damp, k, c);
+					if (hasY) this.accelMixFace(i, i + w, jy, rc, ptot, outSum, damp, k, c);
+				}
+			}
+			for (let i = 0; i < n; i++) {
+				const have = rc[i];
+				outScale[i] = (outSum[i] > have && outSum[i] > 0) ? have / outSum[i] : 1;
+			}
+			for (let y = 0; y < h; y++) {
+				const row = y * w, hasY = y + 1 < h;
+				for (let x = 0; x < w; x++) {
+					const i = row + x;
+					if (x + 1 < w && jx[i]) this.sendMix(i, i + 1, jx, ax, rc, cp, outScale);
+					if (hasY && jy[i]) this.sendMix(i, i + w, jy, ay, rc, cp, outScale);
+				}
+			}
+		}
+	},
+
+	// every present pair consumes min(a, b) * share of each of its two channels, so each channel
+	// loses only to a permitted partner and both partners lose the same amount; in a triple cell
+	// the pair demands are scaled down together when they would overdraw a channel
 	react(s) {
-		const r = s.reaction;
-		if (r <= 0) return;
-		const u = r / 100;
-		const u2 = u * u;
-		const rate = u2 * u2;
-		const ch = Field.ch, c0 = ch[0], c1 = ch[1], c2 = ch[2];
+		const rm = s.reactMask & 7;
+		if (!rm) return;
+		const rr = s.reactRate, rq = this.rq;
+		const q0 = rm & 1 ? Math.min(100, rr[0]) / 100 : 0;
+		const q1 = rm & 2 ? Math.min(100, rr[1]) / 100 : 0;
+		const q2 = rm & 4 ? Math.min(100, rr[2]) / 100 : 0;
+		rq[0] = q0 * q0;
+		rq[1] = q1 * q1;
+		rq[2] = q2 * q2;
+		if (!(rq[0] || rq[1] || rq[2])) return;
+		const c0 = Field.ch[0], c1 = Field.ch[1], c2 = Field.ch[2];
 		for (let i = 0; i < Field.n; i++) {
 			const a = c0[i], b = c1[i], c = c2[i];
-			if ((a > 0 ? 1 : 0) + (b > 0 ? 1 : 0) + (c > 0 ? 1 : 0) < 2) continue;
-			let i0 = 0, i1 = 1, i2 = 2;
-			if (ch[i0][i] > ch[i1][i]) { const t = i0; i0 = i1; i1 = t; }
-			if (ch[i1][i] > ch[i2][i]) { const t = i1; i1 = i2; i2 = t; }
-			if (ch[i0][i] > ch[i1][i]) { const t = i0; i0 = i1; i1 = t; }
-			const v0 = ch[i0][i], v1 = ch[i1][i];
-			if (v0 > 0) {
-				let t3 = (v0 * rate) | 0;
-				if (!t3) t3 = 1;
-				c0[i] -= t3; c1[i] -= t3; c2[i] -= t3;
-			}
-			const m2 = v1 - v0;
-			if (m2 > 0) {
-				let t2 = (m2 * rate) | 0;
-				if (!t2) t2 = 1;
-				ch[i1][i] -= t2; ch[i2][i] -= t2;
-			}
+			const present = (a > 0 ? 1 : 0) + (b > 0 ? 1 : 0) + (c > 0 ? 1 : 0);
+			if (present < 2) continue;
+			let mRG = 0, mRB = 0, mGB = 0;
+			if (a > 0 && b > 0 && rq[0]) mRG = (a < b ? a : b) * rq[0];
+			if (a > 0 && c > 0 && rq[1]) mRB = (a < c ? a : c) * rq[1];
+			if (b > 0 && c > 0 && rq[2]) mGB = (b < c ? b : c) * rq[2];
+			if (!(mRG || mRB || mGB)) continue;
+			const dA = mRG + mRB, dB = mRG + mGB, dC = mRB + mGB;
+			let sc = 1;
+			if (dA > a) sc = a / dA;
+			if (b > 0 && dB > b) { const t = b / dB; if (t < sc) sc = t; }
+			if (c > 0 && dC > c) { const t = c / dC; if (t < sc) sc = t; }
+			if (sc < 1) { mRG *= sc; mRB *= sc; mGB *= sc; }
+			const tRG = mRG | 0, tRB = mRB | 0, tGB = mGB | 0;
+			c0[i] = a - tRG - tRB;
+			c1[i] = b - tRG - tGB;
+			c2[i] = c - tRB - tGB;
 		}
 	},
 

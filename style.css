@@ -102,18 +102,35 @@ body {
 
 .row.dim { opacity: 0.45; }
 
-.row.check {
-	margin-top: 4px;
+.row.checks {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 10px;
+	margin-top: 6px;
 	padding-top: 6px;
 	border-top: 1px solid var(--line);
 }
 
-.row.check label {
+.row.checks label {
 	flex-direction: row;
-	gap: 6px;
+	gap: 4px;
 	justify-content: flex-start;
 	cursor: pointer;
 	color: var(--text);
+}
+
+.row.checks .group {
+	color: var(--dim);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-size: 11px;
+	margin-right: 2px;
+}
+
+input[type=checkbox] {
+	accent-color: #8a8aa8;
+	margin: 0;
 }
 
 input[type=range] {
