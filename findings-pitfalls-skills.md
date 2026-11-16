@@ -63,3 +63,33 @@ its ceiling then drains normally. Derive the total budget from the same per-cell
 `cells × 255 / sourceRate` frames is the floor for a one-source map of 128²: 16 384 × 255 / 32 ≈
 130 000 frames. If a test "never reaches 255" with depletion off, check the source rate and the
 number of source cells before blaming the kernel.
+
+## multigrid for "u is constant per region": restrict the value, not the residual
+
+For the homogeneous problem Au = 0 (equalize per connected region), a residual-restriction V-cycle
+stalls: the coarse correction operator defined by aggregation is ~sz× stiffer per level (sz =
+aggregate size), so each prolongation adds a correction ~1/sz of what the error needs. Measured on
+a 128×128 line: contraction ≈ 0.93 per cycle, error still 860 % after 12 cycles; the Galerkin
+equivalent (off-diagonal = Σ crossing weights) is better (~1.5× per cycle) and still useless.
+
+The working variant restricts the value: average to coarse (size-weighted), flatten the coarse
+representation there (V-cycle again, or a few smooths at the bottom), prolong the flattening delta
+uniformly to children. Same masks, same edges, two smoothing sweeps per level. Measured: max on a
+255-line drops 255 → 19 → 4.4 → 2.3 in three cycles (dev 12700 % → 17 % in 3 cycles).
+
+Construction rules that keep walls exact through coarsening:
+
+- aggregate 2×2 blocks, split each block into components along its internal edges (BFS); cells that
+  touch only on a diagonal must land in different coarse nodes;
+- restriction = size-weighted average of the fine values (telescoping mass conservation at every
+  level); the prolong adds the coarse delta to children;
+- smoothing moves mass across edges (g = wt·su·sv/(su+sv), x -= k·Σg·(x−x̂)/sz); edge flows cancel
+  pairwise so Σ sz·x is invariant per sweep to the float;
+- per frame, quantise with truncation + per-cell error feedback and dump the summed leftover onto
+  the richest cell of the channel: mass is exact by construction;
+- hierarchies are cached and rebuilt only when a channel's mask changes (byte-compare); a 128²
+  all-color build is ~40 ms, dominance flips rebuild only the channels whose mask byte differs.
+
+Coarsening bug pattern: reset the visited/in-slot arrays at slot granularity AFTER the member
+loop, never after each component — a per-component reset re-assigns every cell 4× and no two
+cells ever share an aggregate.

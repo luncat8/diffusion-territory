@@ -63,7 +63,7 @@ getObj().data().action()
 	field.js — owns the cell grid, analysis, caps. edit for storage, cap formula.
 	source.js — owns source cells and injection. edit for paint/inject rules.
 	diffuse.js — owns motion kernels (brownian, diffusion, reaction, depletion). edit for schemes.
-	pressure.js — owns gas pressure equalisation. edit for pyramid, strength.
+	pressure.js — owns gas pressure equalisation. edit for V-cycle counts, strength, aggregation.
 	tick.js — owns step order. edit for phase order.
 	view.js — owns canvas, cursor readout, source marks. edit for color/UI of the map.
 	controls.js — owns the panel widgets. edit for slider list and labels.
@@ -145,7 +145,7 @@ plan 0.1.0 (archive/). constraints that matter:
 	motion must be mass-exact; settling debt goes to the richest neighbour, never a clamp.
 	experiment loader derives script order from index.html and runs them in one VM context.
 	after a sim change: checks.js always, dom-smoke.js when view/controls move.
-next subject: masked multigrid so pressure can honour color walls (gas/notes.md).
+latest: masked multigrid V-cycle landed (gas/notes.md) — pressure is wall-exact, block-free, mass-exact.
 
 ## housekeeping
 

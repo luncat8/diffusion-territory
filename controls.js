@@ -11,7 +11,7 @@ const CONTROLS = [
 	{ key: 'capTerritory', label: 'Small territory boost', min: 0, max: 100, step: 1, unit: '%', hint: 'how far a smaller territory raises the per-cell ceiling' },
 	{ key: 'foreignRate', label: 'Diffuse into other color', min: 0, max: 100, step: 1, unit: '%', hint: 'flux into cells another color holds, used when blocking is off' },
 	{ key: 'substeps', label: 'Steps per frame', min: 1, max: 2, step: 1, unit: '', hint: 'physics passes per frame' },
-	{ key: 'pressure', label: 'Gas pressure equalize', min: 0, max: 100, step: 1, unit: '%', hint: 'multi-scale mean transfer: equalises the whole field, ignores the per-cell ceiling' },
+	{ key: 'pressure', label: 'Gas pressure equalize', min: 0, max: 100, step: 1, unit: '%', hint: 'masked multigrid V-cycle per color: respects color walls, ignores the per-cell ceiling' },
 ];
 
 const Controls = {

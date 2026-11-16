@@ -190,6 +190,17 @@ const p0 = mass();
 run(200);
 check('pressure_mass', mass() === p0, `${p0} -> ${mass()}`);
 
+// pressure honours color walls: a sealed R region past a G wall stays untouched
+setup({ pressure: 100 });
+for (let y = 0; y < H; y++) {
+	Field.v[(y * W + 10) * 3] = 200 * FP_ONE;
+	Field.v[(y * W + 11) * 3 + 1] = 200 * FP_ONE;
+}
+run(200);
+let leakedW = 0;
+for (let y = 0; y < H; y++) for (let x = 12; x < W; x++) if (Field.v[(y * W + x) * 3] > 0) leakedW++;
+check('pressure_walls', leakedW === 0, `leaked_cells=${leakedW}`);
+
 // pressure equalises in far fewer frames than a local walk
 function frames5(over, limit) {
 	setup(over);

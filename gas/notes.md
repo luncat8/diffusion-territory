@@ -2,18 +2,18 @@
 
 Field 128×128, one color, a 1-cell-wide line at 255 in the middle, everything else empty.
 Target: max deviation from the mean below 5 %. Raw numbers: `logs/equalize-128.log`
-(`node bench.js` regenerates them).
+(`node bench.js > logs/equalize-128.log` regenerates them).
 
 | scheme | frames to 5 % | ms/frame | mass drift |
 | --- | --- | --- | --- |
-| diffusion k=0.25 | never within 40 000 (43.8 % left) | 0.47 | 0 ppm |
-| diffusion k=0.25, 2 steps/frame | never within 20 000 (same 43.8 %) | 0.86 | 0 ppm |
-| Brownian 100 % + diffusion | 5 171 | 0.76 | 0 ppm |
-| Brownian 100 % alone | never (the line is relocated, never split) | 0.20 | 0 ppm |
-| pressure 2 % | 161 | 1.37 | 0 ppm |
-| pressure 5 % | 62 | 1.26 | 0 ppm |
-| pressure 25 % | 11 | 1.32 | 0 ppm |
-| pressure 100 % | 1 | 1.74 | 0 ppm |
+| diffusion k=0.25 | never within 40 000 (43.8 % left) | 0.49 | 0 ppm |
+| diffusion k=0.25, 2 steps/frame | never within 20 000 (same 43.8 %) | 0.98 | 0 ppm |
+| Brownian 100 % + diffusion | 5 171 | 0.88 | 0 ppm |
+| Brownian 100 % alone | never (the line is relocated, never split) | 0.23 | 0 ppm |
+| pressure 2 % | 34 | 0.62 | 0 ppm |
+| pressure 5 % | 14 | 0.74 | 0 ppm |
+| pressure 25 % | 3 | 1.28 | 0 ppm |
+| pressure 100 % | 2 | 2.10 | 0 ppm |
 
 ## why the walk is that slow
 
@@ -32,22 +32,36 @@ part that is lit stays a rounded blob around the source. Fill time is mass-bound
 
 ## why pressure is different
 
-The mean pyramid answers "what is the average of this whole region" directly. A cell is moved
-toward the mean of its group at every scale, finest to coarsest, so the coarsest level removes the
-mode that a walk needs 6 600 frames for. Cost is one pass per level over the field: about 1.3 ms
-for seven levels, which is why the pass is optional and off by default.
+Pressure is a masked multigrid V-cycle, one hierarchy per color. The smoother is a damped
+gradient step on edge flows in the size-weighted metric (each sweep keeps total mass of its
+component exactly). Coarsening groups 2x2 blocks and splits a block into components along its
+internal edges, so a wall running through a block never merges the two sides into one coarse
+node, and diagonal-touching cells never merge either. Mass survives coarsening because
+restriction is a size-weighted average and prolongation extends the coarse flattening delta.
+The 4x4-block artifact of the old mean pyramid is gone: gradient ratios at block boundaries sit
+at ~1.0 on a random smoothed blob (pyramid showed 5–50). Cost is a fraction of a frame: the
+slider is a compute budget — 100 buys ~a full flatten per frame, weak settings queue fractional
+cycles and run at ~0.1–0.3 ms.
 
-Two consequences are deliberate:
+Two consequences are deliberate, one changed:
 
-- pressure is non-local. The pyramid links every cell of a color with the rest of that color, so
-  mass can equalise across a barrier of another color (a gas has no walls). Diffusion keeps walls
-  exact; use diffusion when the wall rule matters.
+- pressure is wall-exact now. Foreign-dominated cells exclude themselves from the channel's mask,
+  edges never cross walls at any level, and mass cannot equalise across a barrier. Diffusion is no
+  longer required for the wall rule (both are wall-exact).
 - pressure ignores the per-cell ceiling: it redistributes existing mass, it never creates any, and
   the ceiling still gates injection.
 
-## if faster *and* wall-exact is needed
+Design notes, measured before the switch:
 
-A masked multigrid V-cycle would give the same O(N) convergence while honouring walls: restrict
-the residual instead of the value, restrict only along allowed edges, prolong with the same masks,
-two smoothing sweeps per level. Cost stays one to two field passes per cycle. This is the next step
-if pressure has to follow the territory rule exactly.
+- residual restriction (solve A e = r on the coarse grid) stalls on this homogeneous Laplace
+  problem: the coarse correction operator is ~sz x stiffer per level and the V-cycle
+  contraction sat at ~0.93 per cycle, never flattening the line. The shipped variant flattens the
+  coarse representation itself (value restriction) and adds the coarse delta uniformly; the same
+  masks, edges, sweeps and aggregation apply. Convergence: dev 12700 % -> 2.5 % in 4 cycles.
+- strength semantic changed from a per-level mean blend to a cycle budget: the slider queues
+  V-cycles per frame, 100 = 6 cycles/frame, weak settings accumulate fractionally so a quiet
+  field costs less than 0.5 ms. The pyramid moved more mass per unit slider but crossed walls;
+  the V-cycle is wall-exact and block-free, and lands the 5 % target 3–5x sooner (see log).
+- hierarchies rebuild only when a channel's mask changes (byte compare per cell); a quiet field
+  pays nothing. A 128x128 all-color build costs ~40 ms once per channel; in-game dominance flips
+  rebuild only the affected channel.

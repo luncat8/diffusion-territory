@@ -44,7 +44,7 @@ function check(name, ok, value) {
 }
 
 check('boot_scripts', scripts.length === 10, scripts.join(','));
-check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n} levels=${scope('Pressure').levels}`);
+check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
 check('sliders', doc.querySelectorAll('#rows input[type=range]').length === 10, `rows=${doc.querySelectorAll('#rows input[type=range]').length}`);
 check('player_buttons', doc.querySelectorAll('#players button').length === 3, 'R G B');
 check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length === 3, 'seed sources');
