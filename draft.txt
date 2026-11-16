@@ -1,10 +1,19 @@
 prototype game simulation of cultural influence
 
+minimal css and html
+
+## 1 
+
 128*128 cell map, 
 3 players: R, G, B.
-player can set source of his color on map.
-colors do diffusion.
+player can set source of his color on map. source is always max color (until option of limit total amount of color implemented).
+colors do diffusion or other type of spread to gradually fill map.
+i expect if deplete>0 if form gradient. if deplete==0 then is become near same max color state (or limited by total color amount).
+
 in global settings adjustable depletion rate, default 1 of 255 per frame . we use typed int array in this js prototype.
+
+
+## 2
 
 - colors cant diffuse in cells with other colors
 user can switch rules:
@@ -13,9 +22,44 @@ user can switch rules:
 
 if colors mix - there is reaction  to remove both, rate of such reaction is in global settings.
 
+==========================
 
 
-minimal css and html
+next is thoughts about previous failed implementation (do not read other branches is it useless now for initial implementation and can mislead). your task is to try to create proper diffusion+Brownian and separate gas-pressure based. do not use bit substeps, max 2.
+
+=========================
+
+sliders  diffusion, Brownian works wrong set to 0 cause sometimes stop work or wrong behavior.
+
+also i feel Brownian and diffusion may has buffer swap or priority issue
+
+then in separate folder
+or think about gas dynamic fast approaches that may be better and faster then current for make it same pressure faster. (why is it different?)  i doubt if current approach wrong implemented or just cant do such.
 
 
 
+
+
+
+max color - not work properly. it stop diffusion at all instead of limit source and keep 'mass' conservation.
+
+diffusion on low gradient seems very slow. i suggest add option bownian noise shift: randomly exchange nearest cells before diffusion. this probably need swap buffer to avoid possible long movement by random shift in one pass.
+
+
+-------task was
+
+previous agent failed task - he read as i want exactly 255 and introduced float64.
+
+this is not what i want.  problem is not to reach 255. it is ok if 254 or 250. problem i see diffusion not continue in int or very slow in float . to test add mouse hover show r g b tooltip.
+
+for headless - make 1 px line and see how far diffusion go and why it never reach high values. i dont care about speed or substeps (better without big for good performance) of change, but it looks it does not change at all and form stable gradient (depletion is 0 in settings).
+
+
+
+-------task was
+
+i disable depletion and expect all cells gradually become 255 but it is not. is this proper behaviour? do we need go float to fix? fix.  
+  
+ then ad rule slier: max amount of color that player can keep.  
+  
+and slider to set is and how this depends on claimed territory with player color. for example if player has only 2 cells, then max can be 400
