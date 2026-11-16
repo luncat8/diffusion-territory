@@ -1,0 +1,65 @@
+# findings — notes and pitfalls for agents
+
+## quantised flux makes a fixed point (the "stable gradient" bug)
+
+Averaging with integer / quantised flux always has edges whose flux rounds to zero. If `f = 0`
+for `|d|` above zero and the field has no other reason to change, the field is a fixed point:
+it stops one step short of flat and looks like a frozen gradient.
+Measured on a 1×128 line, plain 8-bit `f = (d*k)>>8`: frozen from frame 1000 to 100000,
+`dev = 100.78 %`, half the line at exactly 0, mass 255 unchanged (`experiments/int-stall.js`).
+
+Two independent fixes, apply both:
+
+- enough fractional bits that the residual is invisible (Q12.12 here, 1/4096 of a display unit);
+- if the rounded flux is zero but the difference is not, move one quantum towards the low side.
+  A quantum at that scale is invisible, and it removes the fixed point completely.
+
+Also: `f = (d*k + FP/2) >> FP` rounds half up, so positive and negative differences do not round
+symmetrically; it cannot destroy mass (the same `f` is applied to both ends) but it does bias the
+shape. Fix by the ±1 rule above, not by extra precision alone.
+
+## clamping a negative to zero adds mass
+
+Fixed-point flux can leave a cell a few quanta below zero. `if (v < 0) v = 0` silently *adds*
+those quanta to the field: measured +260 units on a 32×32 field within 200 frames, which then
+looks like the sim "creating color". Keep the debt in place when it is smaller than one display
+unit and hand anything deeper to the richest neighbour (`Field.settle`). Then mass drift is
+0.0 ppm over 40 000 frames.
+
+## Math.round / Math.floor in a hot loop is 20× slower than `| 0`
+
+Same loop, 49k iterations over typed arrays, V8: `Math.floor(want)` 5.4 ms, `Math.round(want)`
+8.3 ms, `want | 0` 0.51 ms. Converting a double result into an `Int32Array` element after
+`Math.floor` appears to defeat the fast path. In a per-frame kernel use `| 0` and carry the
+fraction in a separate `Float64Array` accumulator.
+
+## Brownian: parity pairing beats a second buffer
+
+A random swap pass needs each cell to take part at most once, otherwise a cell can travel far in
+one pass. Iterating only cells with `(x+y)` even and swapping with a random 4-neighbour makes the
+pass a permutation in place: no copy, no aliasing hazard, mass exact, at most one cell of travel.
+Relevant when a second buffer would need a swap anyway.
+
+A pure swap pass cannot equalise a uniform blob (it relocates it), so it never replaces diffusion;
+it accelerates the parts of the field that already have a gradient.
+
+## top-level `const` is not `window.<name>`
+
+Classic `<script>` top-level `const` creates a global lexical binding, not a property of `window`.
+A jsdom/browser test that does `window.Field` gets `undefined`; use `window.eval('Field')`.
+Also: separate `window.eval()` calls do **not** share lexical bindings, so a multi-file test must
+inject real `<script>` elements (jsdom `runScripts: 'dangerously'`, inline the file text) instead
+of evaluating the files one by one.
+
+## a cap must be an inflow ceiling, never a clamp
+
+Removing color above the ceiling breaks conservation and reads as "diffusion stopped". Limit
+inflow per edge and the injection per source cell; let outflow run unconstrained. A cell above
+its ceiling then drains normally. Derive the total budget from the same per-cell number
+(`budget = cap * owned`) so the two rules cannot contradict each other.
+
+## fill time is mass-bound, not diffusion-bound
+
+`cells × 255 / sourceRate` frames is the floor for a one-source map of 128²: 16 384 × 255 / 32 ≈
+130 000 frames. If a test "never reaches 255" with depletion off, check the source rate and the
+number of source cells before blaming the kernel.

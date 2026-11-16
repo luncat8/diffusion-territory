@@ -59,7 +59,17 @@ getObj().data().action()
 
 - keep this map updated when ownership changes:
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
-	ui.js — owns <ui concern>. edit for <ui changes>.
+	settings.js — owns rule values. edit for defaults.
+	field.js — owns the cell grid, analysis, caps. edit for storage, cap formula.
+	source.js — owns source cells and injection. edit for paint/inject rules.
+	diffuse.js — owns motion kernels (brownian, diffusion, reaction, depletion). edit for schemes.
+	pressure.js — owns gas pressure equalisation. edit for pyramid, strength.
+	tick.js — owns step order. edit for phase order.
+	view.js — owns canvas, cursor readout, source marks. edit for color/UI of the map.
+	controls.js — owns the panel widgets. edit for slider list and labels.
+	loop.js — owns pacing and stats cadence. edit for frame loop.
+	experiments/ — node checks and measurements; never loaded by the page.
+	gas/ — equalisation lab: bench, notes, logs.
 - new code goes to its owner, never appended "because the file is already there". no owner exists -> new file + header + map entry.
 - file > ~500 lines = defect. split by feature within the same plan.
 - moves are pure moves: contiguous ranges, snap to enclosing declarations, no behavior change.
@@ -129,10 +139,13 @@ getObj().data().action()
 
 ## current workstream
 
-[rewritten each phase, never accumulated. only constraints that matter right now. delete lines that stopped mattering.]
-
-e.g. splitting ui.js per plan 0.4: dom_smoke after each move, benches at end only.
-e.g. experiment loader derives scripts from index.html and runs them in one VM context.
+plan 0.1.0 (archive/). constraints that matter:
+	field is Q12.12 Int32 — never introduce float state for color amount.
+	max 2 substeps per frame. no bit-level substeps.
+	motion must be mass-exact; settling debt goes to the richest neighbour, never a clamp.
+	experiment loader derives script order from index.html and runs them in one VM context.
+	after a sim change: checks.js always, dom-smoke.js when view/controls move.
+next subject: masked multigrid so pressure can honour color walls (gas/notes.md).
 
 ## housekeeping
 
