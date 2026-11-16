@@ -13,6 +13,11 @@ const CAP_STEPS = [
 
 let elPlay = null;
 let elStats = null;
+let elProbe = null;
+let elProbeXY = null;
+let elProbeR = null;
+let elProbeG = null;
+let elProbeB = null;
 let frameCount = 0;
 let tPrev = 0;
 let tNext = 0;
@@ -20,6 +25,11 @@ let tNext = 0;
 function uiInit() {
 	elPlay = $("play");
 	elStats = $("stats");
+	elProbe = $("probe");
+	elProbeXY = $("probeXY");
+	elProbeR = $("probeR");
+	elProbeG = $("probeG");
+	elProbeB = $("probeB");
 	for (let i = 0; i < RANGES.length; i++) bindRange(RANGES[i]);
 	bindMaxColor();
 	bindCross();
@@ -114,6 +124,19 @@ function uiSync() {
 	elPlay.textContent = settings.running ? "pause" : "play";
 }
 
+// one decimal keeps the slow asymptotic creep near 255 visible that integer rendering hides
+function uiProbe(x, y, px, py) {
+	if (x < 0) { elProbe.style.display = "none"; return; }
+	const i = y * N + x;
+	elProbeXY.textContent = x + "," + y;
+	elProbeR.textContent = "R " + grid.ch[CH_R][i].toFixed(1);
+	elProbeG.textContent = "G " + grid.ch[CH_G][i].toFixed(1);
+	elProbeB.textContent = "B " + grid.ch[CH_B][i].toFixed(1);
+	elProbe.style.display = "block";
+	elProbe.style.left = (px + 14) + "px";
+	elProbe.style.top = (py + 18) + "px";
+}
+
 function uiStats() {
 	const t = performance.now();
 	frameCount++;
@@ -128,5 +151,5 @@ function uiStats() {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-	module.exports = { uiInit, uiSync, uiStats, uiToggleRun };
+	module.exports = { uiInit, uiSync, uiStats, uiToggleRun, uiProbe };
 }
