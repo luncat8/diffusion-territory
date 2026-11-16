@@ -58,6 +58,22 @@ and pairing `(left + right) + (up + down)` in a gather `spreadPass` keeps `x -> 
 fields bit-identical (`mismatch_cells = 0`). Render with `(v + 0.5) | 0` so asymptotic `254.5+`
 displays as `255`.
 
+## stable gradients are a timescale artifact, not a precision one (0.1.3)
+
+With deplete=0 a lone source DOES converge to uniform 255 — but explicit 4-neighbour spread is stable
+only while the per-neighbour share stays <= 255/1024 per update, so the coarsest 128² gradient decays
+by one e-fold per ~1659 steps at rate 128 (1/(2·(rate/1024)·(2π/N)²)). A 1px line source needs ~30000
+steps to pass 250 everywhere, and integer rendering hides the <1 unit/frame creep, so the map reads as
+a frozen gradient. Higher diffusion was unreachable: rate > 255 diverges. Fix: run rates above 255 as
+ceil(rate/255) rounds of rate/rounds per step (cross rates scaled by 1/rounds, deplete applied once per
+step, sources pinned per round); the <= 255 path stays bit-identical. A line then passes 250 at ~8000
+steps. Total fill time is gated by source count, not rate: one point cell exports at most ~250 units per
+round, so paint strokes, not dots.
+Separately, deplete > 0 forms a TRUE equilibrium: only `v = cur − d` flows and a cell keeps nothing but
+inflow, so inventory <= d evaporates; a deplete=1 line source pins at reach=7 by step 300 and is
+bit-identical at step 30000.
+Diagnose slow motion with the hover probe (0.1 resolution), never with pixel colors.
+
 ## node smoke of classic scripts without a browser (0.1.0)
 
 experiments/dom_smoke.js loads index.html, extracts the script order and the ids, stubs just
