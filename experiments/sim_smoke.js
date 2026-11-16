@@ -236,4 +236,26 @@ run(50);
 let uniBad = 0;
 for (let c = 0; c < 3; c++) for (let i = 0; i < G.cells; i++) if (G.ch[c][i] !== 100) uniBad++;
 console.log("case=brownian_uniform brownian=255 frames=50 bad_cells=" + uniBad);
+
+// brownian + diffusion together must conserve: per-channel shuffles separate co-located
+// species, spread then overshoots 255 and the source clamp destroys the excess
+sim.simReset();
+S.deplete = 0; S.diffuse = 128; S.react = 0; S.brownian = 255;
+clearCross(64);
+for (let y = 59; y <= 68; y++) for (let x = 59; x <= 68; x++) { G.ch[0][at(x, y)] = MAXV; G.ch[1][at(x, y)] = 100; }
+const cbPre = scan()[0];
+run(200);
+console.log("case=brownian_diffuse_conserve frames=200 drift=" + (scan()[0] - cbPre).toExponential(3));
+
+// one shared shuffle keeps co-located species together: R+G cells stay R+G, just moved
+sim.simReset();
+S.deplete = 0; S.diffuse = 0; S.react = 0; S.brownian = 255;
+for (let y = 62; y <= 65; y++) for (let x = 62; x <= 65; x++) { G.ch[0][at(x, y)] = MAXV; G.ch[1][at(x, y)] = MAXV; }
+run(20);
+let both = 0, rOnly = 0, gOnly = 0;
+for (let i = 0; i < G.cells; i++) {
+	const r = G.ch[0][i] > 0, g = G.ch[1][i] > 0;
+	if (r && g) both++; else if (r) rOnly++; else if (g) gOnly++;
+}
+console.log("case=brownian_colocate steps=20 both=" + both + " r_only=" + rOnly + " g_only=" + gOnly);
 S.brownian = 0;

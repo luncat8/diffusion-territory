@@ -61,10 +61,9 @@ function rnd() {
 const brDir = new Int8Array(CELLS);
 const brPartner = new Int32Array(CELLS);
 
-// random neighbour shuffle: even cells propose (dir 0 left, 1 right, 2 up, 3 down), odd
-// cells accept one claimer, writes read the old buffer, so a value moves at most one cell
-// per pass, mass stays exact and contested picks stay direction-unbiased
-function brownianPass(a, b) {
+// one shared shuffle for all channels: the gas moves together, so co-located species stay
+// co-located; shuffling each channel separately separates them and breaks spread's bounds
+function brownianPass(cur, nxt) {
 	const p = settings.brownian;
 	brPartner.fill(-1);
 	// all proposals must be written before any acceptance reads a neighbour's
@@ -94,9 +93,12 @@ function brownianPass(a, b) {
 			brPartner[m] = i;
 		}
 	}
-	for (let i = 0; i < CELLS; i++) {
-		const m = brPartner[i];
-		b[i] = a[m < 0 ? i : m];
+	for (let c = 0; c < 3; c++) {
+		const a = cur[c], b = nxt[c];
+		for (let i = 0; i < CELLS; i++) {
+			const m = brPartner[i];
+			b[i] = a[m < 0 ? i : m];
+		}
 	}
 }
 
@@ -237,39 +239,39 @@ function adjustCount(i, r, g, b) {
 	if (nHeld > 1) grid.mixed++;
 }
 
-// explicit spread is only stable while a neighbour share stays <= 255/1024 per round,
-// so rates above 255 run as several stable rounds; deplete still taxes once per step
-function simStep() {
+function swapBuffers() {
 	const ch = grid.ch, back = grid.back;
+	for (let c = 0; c < 3; c++) {
+		const t = ch[c];
+		ch[c] = back[c];
+		back[c] = t;
+	}
+}
+
+// explicit spread is only stable while a neighbour share stays <= 255/1024 per round,
+// so rates above 255 run as several stable rounds; deplete still taxes once per step.
+// brownian runs once per step before the rounds, so the diffusion slider cannot
+// multiply its passes; every phase reads ch, writes back, then swaps
+function simStep() {
 	const rate = settings.diffuse;
 	const rounds = rate > MAXV ? Math.ceil(rate / MAXV) : 1;
 	const sc = 1 / rounds;
 	const sub = rate * sc;
 	const decay = settings.deplete;
 	const brown = settings.brownian;
-	for (let r = 0; r < rounds; r++) {
-		let cur = ch, nxt = back;
-		if (brown > 0) {
-			for (let c = 0; c < 3; c++) brownianPass(ch[c], back[c]);
-			const t0 = cur;
-			cur = nxt;
-			nxt = t0;
-		}
-		for (let c = 0; c < 3; c++) {
-			spreadPass(c, cur[c], nxt[c], cur[(c + 1) % 3], cur[(c + 2) % 3], r === 0 ? decay : 0, sub, sc);
-		}
-		sourcePass(grid.src, nxt);
-		// with brownian the round already wrote the result into ch
-		if (nxt === back) {
-			for (let c = 0; c < 3; c++) {
-				const t = ch[c];
-				ch[c] = back[c];
-				back[c] = t;
-			}
-		}
+	if (brown > 0) {
+		brownianPass(grid.ch, grid.back);
+		swapBuffers();
 	}
-	reactPass(ch[0], ch[1], ch[2], settings.react);
-	countPass(ch[0], ch[1], ch[2]);
+	for (let r = 0; r < rounds; r++) {
+		for (let c = 0; c < 3; c++) {
+			spreadPass(c, grid.ch[c], grid.back[c], grid.ch[(c + 1) % 3], grid.ch[(c + 2) % 3], r === 0 ? decay : 0, sub, sc);
+		}
+		sourcePass(grid.src, grid.back);
+		swapBuffers();
+	}
+	reactPass(grid.ch[0], grid.ch[1], grid.ch[2], settings.react);
+	countPass(grid.ch[0], grid.ch[1], grid.ch[2]);
 }
 
 function simCount() {

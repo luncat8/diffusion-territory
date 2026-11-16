@@ -99,6 +99,35 @@ uniform (pick `rnd() % claimers`): a "later claimer replaces with 1/2" tiebreak 
 checked direction and drifts the field. Verify with a mass-drift case (source cut off) and a
 uniform-field no-op case, not by eye.
 
+## brownian must share one permutation across channels (fix)
+
+Shuffling each channel with its own random partner map separates co-located species
+(16 R+G cells became 1 shared, 15 R-only, 15 G-only in 20 steps). The separated field
+then breaks spread's boundedness: an R-only cell surrounded by R+G neighbours has
+inflow rate 128 but outflow rate 0, so next = 255 + 127 and the source clamp destroys
+the excess — brownian + diffusion together lost 3000-12000 mass in 200 steps while
+each alone conserved exactly. Fix: compute the partner map once, apply it to all
+three channels (the gas moves together). Guards: `brownian_diffuse_conserve`
+(drift ~1e-10) and `brownian_colocate` (r_only = g_only = 0) in sim_smoke.
+
+## brownian must run once per step, not per diffusion round (fix)
+
+Brownian sat inside the sub-round loop, so the diffusion slider multiplied it:
+rate 255 ran 1 shuffle/step, 256 ran 2, 1020 ran 4 (variance ratio 0.036 vs 0.029
+at 255/256). Deplete was already taxed once per step; brownian now runs once before
+the rounds, decoupled from diffusion. Buffer handling is an explicit swap after
+every phase (read ch, write back, swap), no conditional on buffer identity.
+
+## gas dynamics equalizes pressure ~10x faster, color still needs advection
+
+Diffusion is Fickian (flux ~ gradient, no pressure/momentum/waves), so t ~ L^2/D:
+6955 steps to uniform at max rate. A D2Q9 lattice Boltzmann prototype (gas/) carries
+pressure as waves at c_s = 1/sqrt(3): total density reaches 98% in 674 steps,
+~6x faster in wall time. But species ride the flow by advection and stall once the
+flow decays (0.83 after 5000 steps, never uniform), while diffusion uniformizes
+color in 6955 steps. Verdict: diffusion is the right tool for color, lattice
+Boltzmann for pressure; neither is wrong-implemented. Details in gas/README.md.
+
 ## node smoke of classic scripts without a browser (0.1.0)
 
 experiments/dom_smoke.js loads index.html, extracts the script order and the ids, stubs just

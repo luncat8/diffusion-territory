@@ -63,6 +63,8 @@ getObj().data().action()
 	render.js — owns canvas pixels and pointer-to-cell mapping. edit for palette, draw pass.
 	input.js — owns pointer painting, hover probing and keys. edit for brush keys, hover probe, drag shape.
 	ui.js — owns control panel and readout. edit for controls, ranges, readout format.
+	gas/lbm.js — owns lattice Boltzmann prototype, never loaded by the page. edit for lattice constants, viscosity, source pinning.
+	gas/compare.js — owns headless diffusion vs lattice Boltzmann comparison. edit for source geometry, thresholds, step caps.
 - new code goes to its owner, never appended "because the file is already there". no owner exists -> new file + header + map entry.
 - file > ~500 lines = defect. split by feature within the same plan.
 - moves are pure moves: contiguous ranges, snap to enclosing declarations, no behavior change.
