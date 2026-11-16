@@ -1,0 +1,8 @@
+scheme=jacobi_k25 frames_to_5pct=-1 frames_run=40000 ms_frame=0.465 dev_end=43.848% mass_drift=0.0ppm
+scheme=jacobi_k25_two_steps frames_to_5pct=-1 frames_run=20000 ms_frame=0.857 dev_end=43.836% mass_drift=0.0ppm
+scheme=brownian_on_jacobi frames_to_5pct=5171 frames_run=20000 ms_frame=0.766 dev_end=0.061% mass_drift=0.0ppm
+scheme=brownian_only frames_to_5pct=-1 frames_run=2000 ms_frame=0.196 dev_end=12700.000% mass_drift=0.0ppm
+scheme=pressure_2pct frames_to_5pct=161 frames_run=400 ms_frame=1.408 dev_end=0.650% mass_drift=0.0ppm
+scheme=pressure_5pct frames_to_5pct=62 frames_run=200 ms_frame=1.274 dev_end=0.257% mass_drift=0.0ppm
+scheme=pressure_25pct frames_to_5pct=11 frames_run=100 ms_frame=1.265 dev_end=0.037% mass_drift=0.0ppm
+scheme=pressure_100pct frames_to_5pct=1 frames_run=30 ms_frame=1.301 dev_end=0.000% mass_drift=0.0ppm

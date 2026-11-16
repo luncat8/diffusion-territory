@@ -1,0 +1,12 @@
+scheme=naive8 frame=0 dev=12700.0000% max=255.000 min=0.000 mass=255.00
+scheme=shipped_q12 frame=0 dev=12700.0000% max=255.000 min=0.000 mass=255.00
+scheme=naive8 frame=100 dev=602.7451% max=14.000 min=0.000 mass=255.00
+scheme=shipped_q12 frame=100 dev=2924.2770% max=60.249 min=-0.000 mass=255.00
+scheme=naive8 frame=1000 dev=100.7843% max=4.000 min=0.000 mass=255.00
+scheme=shipped_q12 frame=1000 dev=816.8627% max=18.266 min=-0.000 mass=255.00
+scheme=naive8 frame=5000 dev=100.7843% max=4.000 min=0.000 mass=255.00
+scheme=shipped_q12 frame=5000 dev=309.2402% max=8.153 min=0.029 mass=255.00
+scheme=naive8 frame=20000 dev=100.7843% max=4.000 min=0.000 mass=255.00
+scheme=shipped_q12 frame=20000 dev=104.1299% max=4.067 min=0.366 mass=255.00
+scheme=naive8 frame=100000 dev=100.7843% max=4.000 min=0.000 mass=255.00
+scheme=shipped_q12 frame=100000 dev=0.5515% max=2.003 min=1.978 mass=255.00

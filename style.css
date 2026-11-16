@@ -1,0 +1,139 @@
+:root {
+	--bg: #101014;
+	--panel: #17171d;
+	--line: #2a2a34;
+	--text: #c9c9d4;
+	--dim: #7b7b8a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font: 12px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+#app {
+	display: flex;
+	gap: 16px;
+	align-items: flex-start;
+	padding: 16px;
+}
+
+#stage {
+	position: relative;
+	line-height: 0;
+}
+
+#canv {
+	width: min(72vh, 512px);
+	height: min(72vh, 512px);
+	image-rendering: pixelated;
+	background: #000;
+	border: 1px solid var(--line);
+	cursor: crosshair;
+}
+
+#tip {
+	position: absolute;
+	top: 0;
+	left: 0;
+	white-space: pre;
+	pointer-events: none;
+	background: #0b0b10f2;
+	border: 1px solid var(--line);
+	padding: 4px 6px;
+	color: var(--text);
+	font-size: 11px;
+	line-height: 1.35;
+}
+
+#panel {
+	background: var(--panel);
+	border: 1px solid var(--line);
+	padding: 12px;
+	width: 300px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+#players {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.pick {
+	background: #20202a;
+	color: var(--dim);
+	border: 1px solid var(--line);
+	padding: 4px 10px;
+	cursor: pointer;
+	font: inherit;
+}
+
+.pick.on { color: #000; }
+.pick.p0.on { background: #f66; border-color: #f66; }
+.pick.p1.on { background: #6f6; border-color: #6f6; }
+.pick.p2.on { background: #66f; border-color: #66f; }
+
+.hint {
+	color: var(--dim);
+	flex-basis: 100%;
+}
+
+.row {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.row label {
+	display: flex;
+	justify-content: space-between;
+	color: var(--dim);
+}
+
+.row output { color: var(--text); }
+
+.row.check label {
+	flex-direction: row;
+	gap: 6px;
+	justify-content: flex-start;
+	cursor: pointer;
+}
+
+input[type=range] {
+	width: 100%;
+	accent-color: #8a8aa8;
+	height: 16px;
+}
+
+#buttons {
+	display: flex;
+	gap: 6px;
+}
+
+#buttons button {
+	flex: 1;
+	background: #20202a;
+	color: var(--text);
+	border: 1px solid var(--line);
+	padding: 5px 0;
+	cursor: pointer;
+	font: inherit;
+}
+
+#buttons button:hover { background: #2a2a36; }
+
+#stats {
+	margin: 0;
+	color: var(--dim);
+	font-size: 11px;
+	line-height: 1.5;
+	min-height: 68px;
+}
