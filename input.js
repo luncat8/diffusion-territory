@@ -1,5 +1,5 @@
-// owns: pointer painting and keyboard shortcuts
-// edit for: brush keys, mouse buttons, drag shape
+// owns: pointer painting, hover probing and keyboard shortcuts
+// edit for: brush keys, mouse buttons, hover probe, drag shape
 
 let brush = CH_R;
 let mode = 0;
@@ -15,6 +15,7 @@ function inputInit() {
 	c.addEventListener("pointermove", move);
 	c.addEventListener("pointerup", end);
 	c.addEventListener("pointercancel", end);
+	c.addEventListener("pointerleave", probeOff);
 	c.addEventListener("contextmenu", e => e.preventDefault());
 	window.addEventListener("keydown", key);
 }
@@ -37,6 +38,12 @@ function down(e) {
 
 function move(e) {
 	if (mode !== 0) stroke(e);
+	if (!renderPick(e.clientX, e.clientY, pick)) { probeOff(); return; }
+	uiProbe(pick[0], pick[1], e.clientX, e.clientY);
+}
+
+function probeOff() {
+	uiProbe(-1, -1, 0, 0);
 }
 
 function end() {
