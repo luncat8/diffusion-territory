@@ -61,7 +61,7 @@ getObj().data().action()
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
 	sim.js — owns grid buffers, rules and their settings. edit for cell model, equations, defaults.
 	render.js — owns canvas pixels and pointer-to-cell mapping. edit for palette, draw pass.
-	input.js — owns pointer painting and keys. edit for brush keys, drag shape.
+	input.js — owns pointer painting, hover probing and keys. edit for brush keys, hover probe, drag shape.
 	ui.js — owns control panel and readout. edit for controls, ranges, readout format.
 - new code goes to its owner, never appended "because the file is already there". no owner exists -> new file + header + map entry.
 - file > ~500 lines = defect. split by feature within the same plan.
@@ -134,8 +134,8 @@ getObj().data().action()
 
 [rewritten each phase, never accumulated. only constraints that matter right now. delete lines that stopped mattering.]
 
-plan 0.1.2 (float64 diffusion + player color cap): rule changes verify deplete_zero, cap_flat,
-cap_territory, conserve_saturated, and mirror in sim_smoke; UI changes verify dom_smoke.
+plan 0.1.3 (hover probe + substepped diffusion): rule changes verify rounds_fill, deplete_zero,
+cap_flat, cap_territory, conserve_saturated, and mirror in sim_smoke; UI changes verify dom_smoke.
 
 ## housekeeping
 
