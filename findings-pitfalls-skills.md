@@ -93,3 +93,34 @@ Construction rules that keep walls exact through coarsening:
 Coarsening bug pattern: reset the visited/in-slot arrays at slot granularity AFTER the member
 loop, never after each component — a per-component reset re-assigns every cell 4× and no two
 cells ever share an aggregate.
+
+## staggered gas dynamics: avoiding ratcheting, checkerboarding, and VOF speckles
+
+- Feeding an asymmetric foreign-pressure term (`pfor`) or a one-way check valve (`if fl > 0 && pfb > pa: fl = 0`)
+  into a damped momentum accumulator `(jx, jy)` turns jagged diagonal 3-player interfaces into an acoustic ratchet
+  that pumps boundary pressure steadily past source pressure (`> 360` vs `255` cap). Keep unmixable momentum
+  strictly conservative on shared `ptot = R + G + B` and route species along faces via `sendEdge` instead.
+- Blending VOF `sendEdge` (winner-take-all single-color edge transfer) with partial-pressure `mix > 0` creates
+  phase-separation droplet checkerboarding inside partially mixed regions (`[106, 252, 0, 121, 0, 74]`). Use bulk
+  `ptot` + VOF exclusively when unmixable (`!mixable || !mixRate`), and smooth per-species momentum scaled by
+  `mixRate / 100` across foreign-held edges when mixable.
+- Running a VOF surface-tension pass (`smoothInterface`) for isolated `<= 1`-neighbor boundary droplets eliminates
+  corner-shear flotsam/speckling along curved diagonal interfaces (`orphans -> 0`) with zero pressure disturbance
+  when exchanging equal quanta `min(ch[da][a], ch[db][b])` while skipping active source cells.
+
+## mixable gas permeability, 3-species reaction, and painted-source purge
+
+- Scaling mixable face momentum AFTER damping (`fl = perm * (damp * fl + k * dr)`) replaces `damp` with `perm * damp`,
+  collapsing steady conductance by `13.5x` at `mixRate = 50%` (`0.5 / 0.54` vs `1 / 0.08`) and `40x` at `20%`.
+  Scale acceleration `k * perm` with gentle Maxwell-Stefan drag `damp * (0.75 + 0.25 * perm)` weighted by symmetric
+  face foreign density `((ptot[a] - ra) + (ptot[b] - rb)) / (32 * FP_ONE)`: asymmetric `dr > 0 ? ob : oa` or steep
+  thresholds excite a `(pi, pi)` checkerboard oscillation along reactive fronts.
+- Computing 3-player reaction from `min(R, G, B)` when all three channels are non-zero lets `1` quantum of a third
+  species drop `take` to `0` and permanently paralyze reaction between two `200`-unit gases. Sort channels
+  `v0 <= v1 <= v2`, react `v0` across all three, and react `v1 - v0` across the top two (minimum `1` quantum).
+  Map slider `r` (`0..100`) via `(r / 100)^4` so 60 Hz per-frame removal spans glowing reactive overlap (`15..35`,
+  `mixed=4110`) to 1-frame annihilation (`100`) instead of turning `2/3` of the grid black (`dark=10834` at linear `20%`).
+- Painting a source inside existing enemy territory traps foreign gas in the source cross unless `pickDonorSpecies`
+  expels `!(src[d] & (1 << f))` species first, clearing the source to `255` with exact foreign mass conservation.
+
+

@@ -2,6 +2,8 @@ prototype game simulation of cultural influence
 
 minimal css and html
 
+note that we changed our plan to gas-oriented because it is better, so old draft is not a rule anymore but direction
+
 ## 1 
 
 128*128 cell map, 

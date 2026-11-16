@@ -1,11 +1,11 @@
 {
 	"name": "diffusion-territory",
 	"private": true,
-	"description": "color diffusion territory prototype — node side is only for checks and measurements",
+	"description": "color territory gas dynamics simulation — node side is only for checks and measurements",
 	"scripts": {
 		"checks": "node experiments/checks.js",
 		"smoke": "node experiments/dom-smoke.js",
-		"bench": "node gas/bench.js",
+		"bench": "node experiments/gas-bench.js",
 		"snapshot": "node experiments/snapshot.js"
 	},
 	"devDependencies": {

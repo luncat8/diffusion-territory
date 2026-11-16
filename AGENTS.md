@@ -60,16 +60,15 @@ getObj().data().action()
 - keep this map updated when ownership changes:
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
 	settings.js — owns rule values. edit for defaults.
-	field.js — owns the cell grid, analysis, caps. edit for storage, cap formula.
-	source.js — owns source cells and injection. edit for paint/inject rules.
-	diffuse.js — owns motion kernels (brownian, diffusion, reaction, depletion). edit for schemes.
-	pressure.js — owns gas pressure equalisation. edit for V-cycle counts, strength, aggregation.
+	field.js — owns planar Q12.12 cell grid, analysis, per-cell & total-mass caps. edit for storage, cap formula.
+	source.js — owns source cells and injection. edit for paint/seed/inject rules.
+	gas.js — owns staggered gas dynamics, unmixable/mixable transport, reaction, depletion. edit for gas physics.
 	tick.js — owns step order. edit for phase order.
-	view.js — owns canvas, cursor readout, source marks. edit for color/UI of the map.
-	controls.js — owns the panel widgets. edit for slider list and labels.
+	view.js — owns canvas, cursor readout, source marks, stats. edit for color/UI of the map.
+	controls.js — owns panel widgets. edit for sliders, mixing rule switch, and labels.
 	loop.js — owns pacing and stats cadence. edit for frame loop.
-	experiments/ — node checks and measurements; never loaded by the page.
-	gas/ — equalisation lab: bench, notes, logs.
+	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
+	prototype/ — archived diffusion + Brownian + multigrid V-cycle prototype.
 - new code goes to its owner, never appended "because the file is already there". no owner exists -> new file + header + map entry.
 - file > ~500 lines = defect. split by feature within the same plan.
 - moves are pure moves: contiguous ranges, snap to enclosing declarations, no behavior change.
@@ -139,15 +138,11 @@ getObj().data().action()
 
 ## current workstream
 
-plan 0.1.0 (archive/). constraints that matter:
-	field is Q12.12 Int32 — never introduce float state for color amount.
-	max 2 substeps per frame. no bit-level substeps.
-	motion must be mass-exact; settling debt goes to the richest neighbour, never a clamp.
-	experiment loader derives script order from index.html and runs them in one VM context.
-	after a sim change: checks.js always, dom-smoke.js when view/controls move.
-latest: masked multigrid V-cycle landed (gas/notes.md) — pressure is wall-exact, block-free, mass-exact.
+plans 0.2.0, 0.2.1 (archive/). constraints:
+	planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
+	after sim change: checks.js; after UI/boot change: dom-smoke.js.
+latest: mixable Maxwell-Stefan transport, pairwise+triple quartic reaction, total-mass Boyle cap (`maxMass`), and grouped mixing UI landed in 0.2.1.
 
 ## housekeeping
 
-- this file is editable law: a rule that produced a bad outcome gets fixed in place, never worked around.
-- prune dead rules when a plan closes. target < 150 lines — the "don't waste context" rule applies to this file itself.
+- editable law: fix bad rules in place; prune dead rules when a plan closes; keep < 150 lines.

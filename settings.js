@@ -1,18 +1,21 @@
-// owns: rule values shared by the sim and the panel
-// edit for: defaults, new rules
+// owns: global simulation rule values and UI defaults
+// edit for: slider default values or tuning presets
 
 const Settings = {
-	diffusion: 100,
-	brownian: 20,
+	gasSpeed: 65,
+	gasDamping: 15,
 	depletion: 0,
-	reaction: 0,
-	sourceRate: 64,
+	mixable: 0,
+	mixRate: 50,
+	reaction: 20,
+	maxMass: 0,
+	sourceRate: 255,
 	capBase: 0,
 	capTerritory: 100,
-	blockForeign: 1,
-	foreignRate: 0,
 	substeps: 1,
-	pressure: 0,
 	paused: 0,
 	paint: 0,
+	brush: 1,
 };
+
+if (typeof module !== 'undefined') module.exports = { Settings };

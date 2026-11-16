@@ -1,4 +1,4 @@
-// owns: canvas painting, cursor readout, source marks
+// owns: canvas rendering, source painting, cursor readout, source marks
 // edit for: color mapping, tooltip fields, canvas interactions
 
 const View = {
@@ -48,6 +48,7 @@ const View = {
 		View.hover = i;
 		if (i < 0) { View.tip.hidden = true; return; }
 		if (e.buttons & 1) View.paintCell(i, Settings.paint, true);
+		else if (e.buttons & 2) View.paintCell(i, Settings.paint, false);
 		View.read(i, e);
 	},
 
@@ -59,7 +60,7 @@ const View = {
 	},
 
 	paintCell(i, player, on) {
-		Source.paint(i % Field.w, (i / Field.w) | 0, player, on);
+		Source.paint(i % Field.w, (i / Field.w) | 0, player, on, Settings.brush);
 	},
 
 	leave() {
@@ -72,10 +73,11 @@ const View = {
 		const x = i % Field.w;
 		const y = (i / Field.w) | 0;
 		Field.sample(x, y, c);
+		const p = c[0] + c[1] + c[2];
 		View.text =
 			x + ',' + y + '  ' + (c[6] ? 'src ' + View.maskName(c[6]) : 'no src') + '  ' + View.state(c) +
 			'\nR ' + View.fixed(c[0], c[3]) + '  G ' + View.fixed(c[1], c[4]) + '  B ' + View.fixed(c[2], c[5]) +
-			'\ncap R ' + View.capText(0) + ' G ' + View.capText(1) + ' B ' + View.capText(2);
+			'\npressure ' + p + '  cap R ' + View.capText(0) + ' G ' + View.capText(1) + ' B ' + View.capText(2);
 		View.tip.textContent = View.text;
 		View.tip.hidden = false;
 		const r = View.canvas.getBoundingClientRect();
@@ -103,12 +105,14 @@ const View = {
 	},
 
 	draw() {
-		const v = Field.v;
+		const c0 = Field.ch[0];
+		const c1 = Field.ch[1];
+		const c2 = Field.ch[2];
 		const d = this.pix.data;
-		for (let i = 0, j = 0, p = 0; i < Field.n; i++, j += 3, p += 4) {
-			let r = v[j] >> FP;
-			let g = v[j + 1] >> FP;
-			let b = v[j + 2] >> FP;
+		for (let i = 0, p = 0; i < Field.n; i++, p += 4) {
+			const r = c0[i] >> FP;
+			const g = c1[i] >> FP;
+			const b = c2[i] >> FP;
 			d[p] = r > 255 ? 255 : r > 0 ? r : 0;
 			d[p + 1] = g > 255 ? 255 : g > 0 ? g : 0;
 			d[p + 2] = b > 255 ? 255 : b > 0 ? b : 0;
@@ -136,17 +140,26 @@ const View = {
 		const i = this.hover;
 		if (i < 0) return;
 		const s = this.scale;
+		const r = Settings.brush;
+		const x = (i % Field.w) - r;
+		const y = ((i / Field.w) | 0) - r;
+		const span = (r * 2 + 1) * s;
 		this.ctx.strokeStyle = '#fff';
 		this.ctx.lineWidth = 1;
-		this.ctx.strokeRect((i % Field.w) * s + 0.5, ((i / Field.w) | 0) * s + 0.5, s - 1, s - 1);
+		this.ctx.strokeRect(x * s + 0.5, y * s + 0.5, span - 1, span - 1);
 	},
 
 	stats(node) {
-		let s = 'fps ' + Loop.fps + '\n';
+		const mode = Settings.mixable && Settings.mixRate > 0
+			? 'mix ' + Settings.mixRate + '% · react ' + Settings.reaction + '%'
+			: 'unmixable';
+		let s = 'fps ' + Loop.fps + '  (' + mode + ')\n';
 		for (let p = 0; p < 3; p++) {
+			const mass = Math.round(Field.total[p] / FP_ONE);
+			const lim = Settings.maxMass > 0 ? '/' + (Settings.maxMass * 1000) : '';
 			s += View.names[p] + ' cells ' + Field.owned[p] +
 				'  cap ' + (Field.cap[p] ? (Field.cap[p] >> FP) : 'off') +
-				'  mass ' + Math.round(Field.total[p] / FP_ONE) + '\n';
+				'  mass ' + mass + lim + '\n';
 		}
 		s += 'frame ' + Loop.frame;
 		node.textContent = s;

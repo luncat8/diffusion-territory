@@ -1,20 +1,18 @@
-// owns: the per-frame kernel sequence
-// edit for: step order
+// owns: per-frame physics phase ordering
+// edit for: changing the order of transport, reaction, depletion, or source injection
 
 const Tick = {
 	run(s) {
 		Field.analyze();
-		Field.caps(s.capBase, s.capTerritory);
+		Field.caps(s.capBase, s.capTerritory, s.maxMass);
+		const n = Math.max(1, Math.min(2, s.substeps | 0));
+		for (let i = 0; i < n; i++) Gas.step(s);
+		if (s.mixable && s.mixRate > 0) Gas.react(s);
+		Gas.deplete(s);
+		Field.analyze();
+		Field.caps(s.capBase, s.capTerritory, s.maxMass);
 		Source.inject(s);
-		// shift before flux: the walk then relaxes a randomised field instead of
-		// re-enforcing the same lattice pattern every frame
-		for (let i = 0; i < s.substeps; i++) {
-			Diffuse.brownian(s);
-			Diffuse.diffusion(s);
-		}
-		Diffuse.react(s);
-		Diffuse.deplete(s);
-		Pressure.equalize(s);
+		Field.analyze();
 	},
 };
 

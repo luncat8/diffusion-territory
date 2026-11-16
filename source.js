@@ -1,52 +1,61 @@
-// owns: source cells and the color they inject
-// edit for: paint rules, inject rate, budget limits
+// owns: source cell placement, seeding, and budget-capped injection
+// edit for: brush shapes, initial layout, or injection formula
 
 const Source = {
-	room: new Float64Array(3),
-
-	paint(x, y, player, on) {
-		const i = y * Field.w + x;
-		const bit = 1 << player;
-		Field.src[i] = on ? Field.src[i] | bit : Field.src[i] & ~bit;
+	paint(x, y, player, on, radius = 0) {
+		const mask = 1 << player;
+		const r = radius | 0;
+		for (let dy = -r; dy <= r; dy++) {
+			const ny = y + dy;
+			if (ny < 0 || ny >= Field.h) continue;
+			for (let dx = -r; dx <= r; dx++) {
+				if (r > 0 && dx * dx + dy * dy > r * r) continue;
+				const nx = x + dx;
+				if (nx < 0 || nx >= Field.w) continue;
+				const i = ny * Field.w + nx;
+				Field.src[i] = on ? mask : 0;
+			}
+		}
 	},
 
-	// a source plus a small heap, so the map shows a gradient before mass builds up
 	seed(x, y, player) {
-		Source.paint(x, y, player, 1);
+		this.paint(x, y, player, 1, 1);
+		const ch = Field.ch[player];
 		for (let dy = -2; dy <= 2; dy++) {
+			const ny = y + dy;
+			if (ny < 0 || ny >= Field.h) continue;
 			for (let dx = -2; dx <= 2; dx++) {
-				const step = 3 - Math.max(Math.abs(dx), Math.abs(dy));
-				if (step <= 0) continue;
-				Field.v[((y + dy) * Field.w + (x + dx)) * 3 + player] = step * 60 * FP_ONE;
+				const nx = x + dx;
+				if (nx < 0 || nx >= Field.w) continue;
+				const dist = Math.abs(dx) + Math.abs(dy);
+				const amt = dist <= 1 ? 255 : (dist <= 2 ? 160 : 80);
+				ch[ny * Field.w + nx] = amt * FP_ONE;
 			}
 		}
 	},
 
 	inject(s) {
-		const rate = s.sourceRate * FP_ONE;
-		if (!rate) return;
-		const v = Field.v;
+		const rate = Math.round(s.sourceRate * FP_ONE);
+		if (rate <= 0) return;
 		const src = Field.src;
+		const ch = Field.ch;
 		const cap = Field.cap;
-		const total = Field.total;
 		const budget = Field.budget;
-		const room = Source.room;
-		room[0] = budget[0] - total[0];
-		room[1] = budget[1] - total[1];
-		room[2] = budget[2] - total[2];
-		for (let i = 0, j = 0; i < Field.n; i++, j += 3) {
-			const mask = src[i];
-			if (!mask) continue;
+		const total = Field.total;
+		const defCeil = CAP_DEF * FP_ONE;
+		for (let i = 0; i < Field.n; i++) {
+			const m = src[i];
+			if (!m) continue;
 			for (let p = 0; p < 3; p++) {
-				if (!(mask & (1 << p))) continue;
-				if (room[p] <= 0) continue;
-				let add = rate;
-				if (add > room[p]) add = room[p];
-				const head = (cap[p] || CAP_MAX * FP_ONE) - v[j + p];
+				if (!(m & (1 << p))) continue;
+				const room = budget[p] - total[p];
+				if (room <= 0) continue;
+				const ceil = cap[p] || defCeil;
+				const head = ceil - ch[p][i];
 				if (head <= 0) continue;
-				if (add > head) add = head;
-				v[j + p] += add;
-				room[p] -= add;
+				let add = rate < room ? rate : room;
+				if (head < add) add = head;
+				ch[p][i] += add;
 				total[p] += add;
 			}
 		}

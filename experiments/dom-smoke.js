@@ -43,11 +43,12 @@ function check(name, ok, value) {
 	console.log(`check=${name} ok=${ok ? 1 : 0} value=${value}`);
 }
 
-check('boot_scripts', scripts.length === 10, scripts.join(','));
+check('boot_scripts', scripts.length === 9, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
-check('sliders', doc.querySelectorAll('#rows input[type=range]').length === 10, `rows=${doc.querySelectorAll('#rows input[type=range]').length}`);
+check('sliders', doc.querySelectorAll('#rows input[type=range]').length === 11, `rows=${doc.querySelectorAll('#rows input[type=range]').length}`);
+check('mixable_checkbox', !!doc.getElementById('mixable'), 'present');
 check('player_buttons', doc.querySelectorAll('#players button').length === 3, 'R G B');
-check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length === 3, 'seed sources');
+check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length === 15, 'seed sources');
 
 scope('Tick').run(scope('Settings'));
 scope('View').draw();
@@ -57,7 +58,7 @@ function mouse(type, x, y, extra) {
 	canvas.dispatchEvent(new window.MouseEvent(type, Object.assign({ clientX: x, clientY: y, bubbles: true }, extra)));
 }
 mouse('mousemove', 100, 100);
-check('hover_readout', !tip.hidden && tip.textContent.includes('R '), JSON.stringify(tip.textContent));
+check('hover_readout', !tip.hidden && tip.textContent.includes('R ') && tip.textContent.includes('pressure '), JSON.stringify(tip.textContent));
 
 mouse('mousedown', 400, 400, { button: 0 });
 const cell = (400 >> 2) * 128 + (400 >> 2);
@@ -68,14 +69,27 @@ check('right_click_erases', (scope('Field').src[cell] & 1) === 0, `src=${scope('
 const slider = doc.querySelectorAll('#rows input[type=range]')[0];
 slider.value = '35';
 slider.dispatchEvent(new window.Event('input', { bubbles: true }));
-check('slider_binds', scope('Settings').diffusion === 35, `diffusion=${scope('Settings').diffusion}`);
+check('slider_binds', scope('Settings').gasSpeed === 35, `gasSpeed=${scope('Settings').gasSpeed}`);
+
+const mixBox = doc.getElementById('mixable');
+mixBox.checked = true;
+mixBox.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('mixable_binds', scope('Settings').mixable === 1, `mixable=${scope('Settings').mixable}`);
+
+mixBox.checked = false;
+mixBox.dispatchEvent(new window.Event('change', { bubbles: true }));
+const mixSlider = doc.querySelectorAll('#rows input[type=range]')[3];
+mixSlider.value = '65';
+mixSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
+check('mix_slider_auto_enables', scope('Settings').mixable === 1 && mixBox.checked && scope('Settings').mixRate === 65,
+	`mixable=${scope('Settings').mixable} rate=${scope('Settings').mixRate}`);
 
 doc.getElementById('pause').click();
 check('pause_toggles', scope('Settings').paused === 1, doc.getElementById('pause').textContent);
 doc.getElementById('pause').click();
 doc.getElementById('reset').click();
 const resetField = scope('Field');
-check('reset_reseeds', Array.from(resetField.src).filter(Boolean).length === 3 &&
+check('reset_reseeds', Array.from(resetField.src).filter(Boolean).length === 15 &&
 	resetField.total[0] > 0 && resetField.total[1] > 0 && resetField.total[2] > 0, 'three sources with heaps');
 
 setTimeout(() => {

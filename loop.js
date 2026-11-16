@@ -1,5 +1,5 @@
-// owns: the frame loop and pacing
-// edit for: sim rate, stats cadence
+// owns: the 60 Hz animation loop and stats cadence
+// edit for: sim rate or stats refresh interval
 
 const Loop = {
 	frame: 0,
