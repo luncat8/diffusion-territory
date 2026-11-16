@@ -6,7 +6,7 @@ const CONTROLS = [
 	{ key: 'brownian', label: 'Brownian shift', min: 0, max: 100, step: 1, unit: '%', hint: 'chance to swap a cell with a random neighbour before diffusion' },
 	{ key: 'depletion', label: 'Depletion', min: 0, max: 8, step: 1, unit: '/f', hint: 'color removed from every cell each frame' },
 	{ key: 'reaction', label: 'Mix reaction', min: 0, max: 100, step: 1, unit: '%', hint: 'share of the smaller color removed where two colors meet' },
-	{ key: 'sourceRate', label: 'Source rate', min: 0, max: 64, step: 1, unit: '/f', hint: 'color a source cell adds each frame' },
+	{ key: 'sourceRate', label: 'Source rate', min: 0, max: 255, step: 1, unit: '/f', hint: 'color a source cell adds each frame' },
 	{ key: 'capBase', label: 'Max color per cell', min: 0, max: 1023, step: 1, unit: '', hint: 'per-cell ceiling on a 16-cell territory; 0 = no limit' },
 	{ key: 'capTerritory', label: 'Small territory boost', min: 0, max: 100, step: 1, unit: '%', hint: 'how far a smaller territory raises the per-cell ceiling' },
 	{ key: 'foreignRate', label: 'Diffuse into other color', min: 0, max: 100, step: 1, unit: '%', hint: 'flux into cells another color holds, used when blocking is off' },

@@ -6,7 +6,7 @@ const Settings = {
 	brownian: 20,
 	depletion: 0,
 	reaction: 0,
-	sourceRate: 32,
+	sourceRate: 64,
 	capBase: 0,
 	capTerritory: 100,
 	blockForeign: 1,
