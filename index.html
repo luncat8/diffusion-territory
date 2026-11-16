@@ -12,7 +12,7 @@ body { margin: 0; background: #14161a; color: #c9ced6; font: 13px/1.5 system-ui,
 .row { display: flex; align-items: center; gap: 8px; }
 .row > span { width: 84px; color: #8b939f; }
 .row > input[type=range] { flex: 1; min-width: 0; }
-output { width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
+output { width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
 .sub { color: #8b939f; font-size: 12px; margin-top: 2px; }
 .cross-box { display: flex; flex-direction: column; gap: 5px; }
 .pair { display: flex; align-items: center; gap: 4px; width: 58px; cursor: pointer; }
@@ -26,6 +26,7 @@ input:disabled, input:disabled + output { opacity: 0.35; }
 .sw[data-ch="0"].on { border-color: #f06a6a; }
 .sw[data-ch="1"].on { border-color: #5ad07a; }
 .sw[data-ch="2"].on { border-color: #6a9cf0; }
+#probe { position: fixed; display: none; z-index: 10; pointer-events: none; background: #1b1f26; border: 1px solid #2f353e; border-radius: 4px; padding: 2px 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 #stats { font-variant-numeric: tabular-nums; }
 #hint { margin: 0; color: #6d7583; }
 </style>
@@ -33,6 +34,7 @@ input:disabled, input:disabled + output { opacity: 0.35; }
 <body>
 <div id="app">
 	<canvas id="canv" width="128" height="128"></canvas>
+	<div id="probe"><span id="probeXY"></span> <span id="probeR" class="c0"></span> <span id="probeG" class="c1"></span> <span id="probeB" class="c2"></span></div>
 	<div id="panel">
 		<div class="row" id="players">
 			<button class="sw" data-ch="0">R</button>
@@ -41,7 +43,7 @@ input:disabled, input:disabled + output { opacity: 0.35; }
 			<button class="sw" data-ch="-1">erase</button>
 		</div>
 		<label class="row"><span>depletion</span><input id="deplete" type="range" min="0" max="16" step="1"><output id="depleteVal"></output></label>
-		<label class="row"><span>diffusion</span><input id="diffuse" type="range" min="0" max="255" step="1"><output id="diffuseVal"></output></label>
+		<label class="row"><span>diffusion</span><input id="diffuse" type="range" min="0" max="1020" step="1"><output id="diffuseVal"></output></label>
 		<div class="sub">cross diffusion (either allows → both)</div>
 		<div class="cross-box">
 			<div class="row"><label class="pair"><input id="allow01" type="checkbox"><b class="c0">R</b>→<b class="c1">G</b></label><input id="rate01" type="range" min="0" max="255" step="1"><output id="rate01Val"></output></div>
@@ -61,7 +63,7 @@ input:disabled, input:disabled + output { opacity: 0.35; }
 			<button class="sw" id="reset">clear</button>
 		</div>
 		<div id="stats"></div>
-		<p id="hint">drag on the map to place a source. 1 2 3 pick color, 0 erase, space pause, s step, c clear.</p>
+		<p id="hint">drag on the map to place a source, hover a cell for its rgb. 1 2 3 pick color, 0 erase, space pause, s step, c clear. diffusion over 255 runs sub-rounds.</p>
 	</div>
 </div>
 <script src="sim.js"></script>
