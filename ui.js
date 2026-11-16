@@ -2,8 +2,14 @@
 // edit for: control set, ranges, readout format
 
 const STATS_MS = 200;
-const RANGES = ["deplete", "diffuse", "react", "speed"];
+const RANGES = ["deplete", "diffuse", "react", "territoryCap", "speed"];
 const PAIRS = [[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]];
+const CAP_STEPS = [
+	0, 50, 100, 150, 200, 250, 300, 400, 500, 600, 800,
+	1000, 1500, 2000, 3000, 4000, 5000, 7500,
+	10000, 15000, 20000, 30000, 50000, 75000,
+	100000, 200000, 500000, 1000000, Infinity
+];
 
 let elPlay = null;
 let elStats = null;
@@ -15,12 +21,35 @@ function uiInit() {
 	elPlay = $("play");
 	elStats = $("stats");
 	for (let i = 0; i < RANGES.length; i++) bindRange(RANGES[i]);
+	bindMaxColor();
 	bindCross();
 	bindPlayers();
 	elPlay.addEventListener("click", uiToggleRun);
 	$("stepBtn").addEventListener("click", () => simStep());
 	$("reset").addEventListener("click", () => simReset());
 	tPrev = performance.now();
+}
+
+function formatCap(v) {
+	if (v === Infinity) return "∞";
+	if (v >= 1000000) return (v / 1000000) + "M";
+	if (v >= 1000) return (v / 1000) + "k";
+	return "" + v;
+}
+
+function bindMaxColor() {
+	const el = $("maxColor"), out = $("maxColorVal"), dep = $("territoryCap");
+	el.max = CAP_STEPS.length - 1;
+	const idx = CAP_STEPS.indexOf(settings.maxColor);
+	el.value = idx >= 0 ? idx : CAP_STEPS.length - 1;
+	const sync = () => {
+		const v = CAP_STEPS[+el.value];
+		settings.maxColor = v;
+		out.textContent = formatCap(v);
+		dep.disabled = v === Infinity;
+	};
+	sync();
+	el.addEventListener("input", sync);
 }
 
 // slider ids mirror settings keys, so one binder covers every rule knob

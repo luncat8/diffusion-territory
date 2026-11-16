@@ -12,7 +12,7 @@ body { margin: 0; background: #14161a; color: #c9ced6; font: 13px/1.5 system-ui,
 .row { display: flex; align-items: center; gap: 8px; }
 .row > span { width: 84px; color: #8b939f; }
 .row > input[type=range] { flex: 1; min-width: 0; }
-output { width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+output { width: 36px; text-align: right; font-variant-numeric: tabular-nums; }
 .sub { color: #8b939f; font-size: 12px; margin-top: 2px; }
 .cross-box { display: flex; flex-direction: column; gap: 5px; }
 .pair { display: flex; align-items: center; gap: 4px; width: 58px; cursor: pointer; }
@@ -52,6 +52,8 @@ input:disabled, input:disabled + output { opacity: 0.35; }
 			<div class="row"><label class="pair"><input id="allow21" type="checkbox"><b class="c2">B</b>→<b class="c1">G</b></label><input id="rate21" type="range" min="0" max="255" step="1"><output id="rate21Val"></output></div>
 		</div>
 		<label class="row"><span>reaction</span><input id="react" type="range" min="0" max="255" step="1"><output id="reactVal"></output></label>
+		<label class="row"><span>max color</span><input id="maxColor" type="range" min="0" max="28" step="1"><output id="maxColorVal"></output></label>
+		<label class="row"><span>+ / claimed</span><input id="territoryCap" type="range" min="0" max="510" step="5"><output id="territoryCapVal"></output></label>
 		<label class="row"><span>steps / frame</span><input id="speed" type="range" min="1" max="8" step="1"><output id="speedVal"></output></label>
 		<div class="row">
 			<button class="sw" id="play">pause</button>

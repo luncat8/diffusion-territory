@@ -16,7 +16,7 @@ function renderInit() {
 function renderDraw() {
 	const r = grid.ch[CH_R], g = grid.ch[CH_G], b = grid.ch[CH_B];
 	for (let i = 0; i < CELLS; i++) {
-		px[i] = 0xff000000 | ((b[i] >> SHIFT) << 16) | ((g[i] >> SHIFT) << 8) | (r[i] >> SHIFT);
+		px[i] = 0xff000000 | (((b[i] + 0.5) | 0) << 16) | (((g[i] + 0.5) | 0) << 8) | ((r[i] + 0.5) | 0);
 	}
 	ctx.putImageData(img, 0, 0);
 }

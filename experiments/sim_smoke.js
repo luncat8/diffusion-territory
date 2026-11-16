@@ -154,3 +154,46 @@ const dPerm = Math.abs(G.ch[0][at(66, 64)] - G.ch[2][at(67, 64)]) +
 	Math.abs(G.ch[2][at(66, 64)] - G.ch[0][at(67, 64)]);
 console.log("case=react3_sym delta_100=" + d1 + " delta_200=" + d2 +
 	" perm_delta=" + dPerm + " rem_100=" + G.ch[0][at(64, 64)] + " rem_200=" + G.ch[0][at(65, 64)]);
+
+// deplete=0 reaches 255 without stalling at integer staircases
+sim.simReset();
+S.deplete = 0; S.diffuse = 128; S.react = 0;
+clearCross(64);
+for (let y = 0; y < N; y += 8) for (let x = 0; x < N; x += 8) sim.simPaint(at(x, y), sim.CH_R);
+run(5000);
+let minV = MAXV, round255 = 0;
+for (let i = 0; i < G.cells; i++) {
+	const v = G.ch[0][i];
+	if (v < minV) minV = v;
+	if (((v + 0.5) | 0) >= 255) round255++;
+}
+console.log("case=deplete_zero frames=5000 min=" + minV.toFixed(6) + " round_255=" + round255 + " cells=" + G.cells);
+
+// maxColor flat cap holds total color <= maxColor regardless of spread
+sim.simReset();
+S.deplete = 0; S.diffuse = 128; S.react = 0;
+S.maxColor = 400; S.territoryCap = 0;
+clearCross(64);
+sim.simPaint(at(64, 64), sim.CH_R);
+sim.simPaint(at(65, 64), sim.CH_R);
+run(200);
+let sumFlat = 0;
+for (let i = 0; i < G.cells; i++) sumFlat += G.ch[0][i];
+console.log("case=cap_flat max=400 r_cells=" + G.count[0] + " total=" + sumFlat.toFixed(6));
+
+// territory-dependent cap: 2 boxed-in cells with maxColor=0, territoryCap=200 => cap 400
+sim.simReset();
+S.deplete = 0; S.diffuse = 128; S.react = 0;
+S.maxColor = 0; S.territoryCap = 200;
+clearCross(64);
+for (let y = 62; y <= 66; y++) {
+	for (let x = 62; x <= 67; x++) {
+		const isR = y === 64 && (x === 64 || x === 65);
+		sim.simPaint(at(x, y), isR ? sim.CH_R : sim.CH_G);
+	}
+}
+run(50);
+let sumTerr = 0;
+for (let i = 0; i < G.cells; i++) sumTerr += G.ch[0][i];
+console.log("case=cap_territory max=0 per_cell=200 r_cells=" + G.count[0] + " total=" + sumTerr.toFixed(6));
+S.maxColor = Infinity; S.territoryCap = 0;

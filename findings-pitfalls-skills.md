@@ -48,6 +48,16 @@ leaves `B` untouched whenever channels drop below `2 * rate`. Running simultaneo
 reacting the remaining pair up to `rate - (s >> 1)` keeps integer arithmetic exact and invariant
 under R/G/B permutation.
 
+## float64 gather avoids quantization stalls and mirror drift (0.1.2)
+
+Even with 4 fraction bits (`Uint16Array`, `SHIFT = 4`), `(v * r) >> 10` truncates net flow to
+zero whenever adjacent cells differ by less than `1024 / r` units, freezing `deplete = 0` fields
+in a staircase at `254` or lower. `Float32Array` still stalls around `254.92-254.99` due to
+24-bit cancellation against `4 * share`. `Float64Array` in native `0..255` units converges cleanly,
+and pairing `(left + right) + (up + down)` in a gather `spreadPass` keeps `x -> N-1-x` mirror
+fields bit-identical (`mismatch_cells = 0`). Render with `(v + 0.5) | 0` so asymptotic `254.5+`
+displays as `255`.
+
 ## node smoke of classic scripts without a browser (0.1.0)
 
 experiments/dom_smoke.js loads index.html, extracts the script order and the ids, stubs just

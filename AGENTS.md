@@ -134,8 +134,8 @@ getObj().data().action()
 
 [rewritten each phase, never accumulated. only constraints that matter right now. delete lines that stopped mattering.]
 
-plan 0.1.1 (per-color cross diffusion): rule changes verify conserve_saturated, pair_isolation,
-asym_rate, react3_sym, and mirror in sim_smoke; wiring/UI changes verify dom_smoke.
+plan 0.1.2 (float64 diffusion + player color cap): rule changes verify deplete_zero, cap_flat,
+cap_territory, conserve_saturated, and mirror in sim_smoke; UI changes verify dom_smoke.
 
 ## housekeeping
 

@@ -3,9 +3,8 @@
 
 const N = 128;
 const CELLS = N * N;
-// fixed point: 4 fraction bits let low concentrations keep spreading instead of truncating to 0
-const SHIFT = 4;
-const MAXV = 255 << SHIFT;
+const MAXV = 255;
+const INV_1024 = 1 / 1024;
 
 const CH_R = 0;
 const CH_G = 1;
@@ -27,28 +26,29 @@ const settings = {
 		[64, 0, 64],
 		[64, 64, 0]
 	],
-	react: 8
+	react: 8,
+	maxColor: Infinity,
+	territoryCap: 0
 };
 
 const grid = {
 	cells: CELLS,
 	src: new Uint8Array(CELLS),
-	ch: [new Uint16Array(CELLS), new Uint16Array(CELLS), new Uint16Array(CELLS)],
-	back: [new Uint16Array(CELLS), new Uint16Array(CELLS), new Uint16Array(CELLS)],
+	ch: [new Float64Array(CELLS), new Float64Array(CELLS), new Float64Array(CELLS)],
+	back: [new Float64Array(CELLS), new Float64Array(CELLS), new Float64Array(CELLS)],
 	count: new Int32Array(3),
 	mixed: 0
 };
 
-const nb4 = new Int32Array(4);
-
-function decayPass(cur, next, d) {
-	for (let i = 0; i < CELLS; i++) {
-		const v = cur[i] - d;
-		next[i] = v > 0 ? v : 0;
-	}
+function nbRate(va, vb, rate, can1, can2, r1, r2) {
+	const ha = va > 0, hb = vb > 0;
+	if (!ha && !hb) return rate;
+	if ((ha && !can1) || (hb && !can2)) return 0;
+	if (ha && hb) return r1 < r2 ? r1 : r2;
+	return ha ? r1 : r2;
 }
 
-// occupancy is sampled from cur, so two colors may claim the same empty cell in one frame
+// gather in symmetric L+R / U+D pairs keeps float64 diffusion exact under mirror flip
 function spreadPass(c, cur, next, a, b, d, rate) {
 	const c1 = (c + 1) % 3;
 	const c2 = (c + 2) % 3;
@@ -63,31 +63,30 @@ function spreadPass(c, cur, next, a, b, d, rate) {
 		const up = (y > 0 ? y - 1 : N - 1) * N;
 		const down = (y < N - 1 ? y + 1 : 0) * N;
 		for (let x = 0; x < N; x++, i++) {
-			// spreading the post-decay value keeps moved <= base, so next[i] never goes
-			// negative and the pass stays independent of the visit order
+			const j0 = x > 0 ? i - 1 : i + N - 1;
+			const j1 = x < N - 1 ? i + 1 : i - N + 1;
+			const j2 = up + x;
+			const j3 = down + x;
 			const v = cur[i] > d ? cur[i] - d : 0;
-			if (v === 0) continue;
-			nb4[0] = x > 0 ? i - 1 : i + N - 1;
-			nb4[1] = x < N - 1 ? i + 1 : i - N + 1;
-			nb4[2] = up + x;
-			nb4[3] = down + x;
-			let moved = 0;
-			for (let k = 0; k < 4; k++) {
-				const j = nb4[k];
-				const ha = a[j] > 0;
-				const hb = b[j] > 0;
-				let r = rate;
-				if (ha || hb) {
-					if ((ha && !can1) || (hb && !can2)) continue;
-					if (ha && hb) r = r1 < r2 ? r1 : r2;
-					else r = ha ? r1 : r2;
-				}
-				const share = (v * r) >> 10;
-				if (share === 0) continue;
-				moved += share;
-				next[j] += share;
+			const v0 = cur[j0] > d ? cur[j0] - d : 0;
+			const v1 = cur[j1] > d ? cur[j1] - d : 0;
+			const v2 = cur[j2] > d ? cur[j2] - d : 0;
+			const v3 = cur[j3] > d ? cur[j3] - d : 0;
+			if (v === 0 && v0 === 0 && v1 === 0 && v2 === 0 && v3 === 0) {
+				next[i] = 0;
+				continue;
 			}
-			next[i] -= moved;
+			let moved = 0;
+			if (v > 0) {
+				const o0 = nbRate(a[j0], b[j0], rate, can1, can2, r1, r2);
+				const o1 = nbRate(a[j1], b[j1], rate, can1, can2, r1, r2);
+				const o2 = nbRate(a[j2], b[j2], rate, can1, can2, r1, r2);
+				const o3 = nbRate(a[j3], b[j3], rate, can1, can2, r1, r2);
+				moved = v * ((o0 + o1) + (o2 + o3)) * INV_1024;
+			}
+			const rIn = nbRate(a[i], b[i], rate, can1, can2, r1, r2);
+			const inflow = rIn > 0 ? ((v0 + v1) + (v2 + v3)) * rIn * INV_1024 : 0;
+			next[i] = (v - moved) + inflow;
 		}
 	}
 }
@@ -110,7 +109,7 @@ function reactPass(r, g, b, rate) {
 			// drain the shared 3-way core first so low-concentration overlaps stay channel-symmetric
 			const s = Math.min(vr, vg, vb);
 			vr -= s; vg -= s; vb -= s;
-			pairRate = rate - (s >> 1);
+			pairRate = rate - s * 0.5;
 		}
 		if (vr > 0 && vg > 0) { const d = Math.min(vr, vg, pairRate); vr -= d; vg -= d; }
 		if (vg > 0 && vb > 0) { const d = Math.min(vg, vb, pairRate); vg -= d; vb -= d; }
@@ -122,7 +121,6 @@ function reactPass(r, g, b, rate) {
 function sourcePass(src, ch) {
 	const r = ch[0], g = ch[1], b = ch[2];
 	for (let i = 0; i < CELLS; i++) {
-		// clamp after spread so saturated cells receive all 4 neighbours before capping
 		if (r[i] > MAXV) r[i] = MAXV;
 		if (g[i] > MAXV) g[i] = MAXV;
 		if (b[i] > MAXV) b[i] = MAXV;
@@ -150,17 +148,37 @@ function countPass(r, g, b) {
 	grid.mixed = mixed;
 }
 
+function capPass(ch) {
+	const base = settings.maxColor;
+	if (!(base < Infinity)) return false;
+	const perCell = settings.territoryCap;
+	const count = grid.count;
+	let changed = false;
+	for (let c = 0; c < 3; c++) {
+		const cap = base + perCell * count[c];
+		const a = ch[c];
+		let total = 0;
+		for (let i = 0; i < CELLS; i++) total += a[i];
+		if (total <= cap) continue;
+		changed = true;
+		if (cap <= 0) { a.fill(0); continue; }
+		const scale = cap / total;
+		for (let i = 0; i < CELLS; i++) a[i] *= scale;
+	}
+	return changed;
+}
+
 function simStep() {
 	const ch = grid.ch, back = grid.back;
 	const rate = settings.diffuse;
-	const decay = settings.deplete << SHIFT;
+	const decay = settings.deplete;
 	for (let c = 0; c < 3; c++) {
-		decayPass(ch[c], back[c], decay);
 		spreadPass(c, ch[c], back[c], ch[(c + 1) % 3], ch[(c + 2) % 3], decay, rate);
 	}
 	sourcePass(grid.src, back);
-	reactPass(back[0], back[1], back[2], settings.react << SHIFT);
+	reactPass(back[0], back[1], back[2], settings.react);
 	countPass(back[0], back[1], back[2]);
+	if (capPass(back)) countPass(back[0], back[1], back[2]);
 	for (let c = 0; c < 3; c++) {
 		// ch is grid.ch, so the old current buffer must be read before it is overwritten
 		const cur = ch[c];
@@ -197,7 +215,7 @@ function simReset() {
 
 if (typeof module !== "undefined" && module.exports) {
 	module.exports = {
-		N, CELLS, SHIFT, MAXV,
+		N, CELLS, MAXV,
 		CH_R, CH_G, CH_B, CH_NONE,
 		settings, grid,
 		simStep, simCount, simPaint, simClear, simReset

@@ -151,6 +151,21 @@ a10.dispatch("change");
 console.log("dom=cross_sym keep_r01=" + r01Keep + " keep_r10=" + r10Keep +
 	" off_r01=" + els.get("rate01").disabled + " off_r10=" + els.get("rate10").disabled);
 
+const mc = els.get("maxColor");
+const tc = els.get("territoryCap");
+const mcInitLbl = els.get("maxColorVal").textContent;
+const tcInitDis = tc.disabled;
+mc.value = "0";
+mc.dispatch("input");
+const tcOnDis = tc.disabled;
+tc.value = "200";
+tc.dispatch("input");
+mc.value = "7";
+mc.dispatch("input");
+console.log("dom=cap init_lbl=" + mcInitLbl + " init_dis=" + tcInitDis +
+	" on_dis=" + tcOnDis + " max=" + S.maxColor + " max_lbl=" + els.get("maxColorVal").textContent +
+	" per_cell=" + S.territoryCap + " per_lbl=" + els.get("territoryCapVal").textContent);
+
 sandbox.window.handlers.keydown({ key: "c", preventDefault() {} });
 steps(2);
 console.log("dom=clear r_cells=" + g.count[0] + " g_cells=" + g.count[1] + " sources=" + g.src.reduce((a, v) => a + (v > 0), 0));
