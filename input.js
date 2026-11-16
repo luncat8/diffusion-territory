@@ -57,7 +57,6 @@ function stroke(e) {
 	else line(lastX, lastY, pick[0], pick[1]);
 	lastX = pick[0];
 	lastY = pick[1];
-	if (!settings.running) simCount();
 }
 
 // pointer moves skip cells on a fast drag, so the stroke is filled in

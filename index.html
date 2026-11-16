@@ -44,6 +44,7 @@ input:disabled, input:disabled + output { opacity: 0.35; }
 		</div>
 		<label class="row"><span>depletion</span><input id="deplete" type="range" min="0" max="16" step="1"><output id="depleteVal"></output></label>
 		<label class="row"><span>diffusion</span><input id="diffuse" type="range" min="0" max="1020" step="1"><output id="diffuseVal"></output></label>
+		<label class="row"><span>brownian</span><input id="brownian" type="range" min="0" max="255" step="1"><output id="brownianVal"></output></label>
 		<div class="sub">cross diffusion (either allows → both)</div>
 		<div class="cross-box">
 			<div class="row"><label class="pair"><input id="allow01" type="checkbox"><b class="c0">R</b>→<b class="c1">G</b></label><input id="rate01" type="range" min="0" max="255" step="1"><output id="rate01Val"></output></div>
@@ -63,7 +64,7 @@ input:disabled, input:disabled + output { opacity: 0.35; }
 			<button class="sw" id="reset">clear</button>
 		</div>
 		<div id="stats"></div>
-		<p id="hint">drag on the map to place a source, hover a cell for its rgb. 1 2 3 pick color, 0 erase, space pause, s step, c clear. diffusion over 255 runs sub-rounds.</p>
+		<p id="hint">drag on the map to place a source, hover a cell for its rgb. 1 2 3 pick color, 0 erase, space pause, s step, c clear. diffusion over 255 runs sub-rounds. brownian swaps random neighbours before diffusion; max color limits source feed, not stored mass.</p>
 	</div>
 </div>
 <script src="sim.js"></script>

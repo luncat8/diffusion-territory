@@ -16,6 +16,7 @@ const settings = {
 	speed: 4,
 	deplete: 1,
 	diffuse: 128,
+	brownian: 0,
 	crossAllow: [
 		[false, false, false],
 		[false, false, false],
@@ -46,6 +47,57 @@ function nbRate(va, vb, rate, can1, can2, r1, r2) {
 	if ((ha && !can1) || (hb && !can2)) return 0;
 	if (ha && hb) return r1 < r2 ? r1 : r2;
 	return ha ? r1 : r2;
+}
+
+// xorshift32 with a fixed seed so headless probes stay reproducible
+let rngState = 0x9e3779b9;
+function rnd() {
+	rngState ^= rngState << 13;
+	rngState ^= rngState >>> 17;
+	rngState ^= rngState << 5;
+	return rngState >>> 0;
+}
+
+const brDir = new Int8Array(CELLS);
+const brPartner = new Int32Array(CELLS);
+
+// random neighbour shuffle: even cells propose (dir 0 left, 1 right, 2 up, 3 down), odd
+// cells accept one claimer, writes read the old buffer, so a value moves at most one cell
+// per pass, mass stays exact and contested picks stay direction-unbiased
+function brownianPass(a, b) {
+	const p = settings.brownian;
+	brPartner.fill(-1);
+	// all proposals must be written before any acceptance reads a neighbour's
+	for (let y = 0; y < N; y++) {
+		const row = y * N;
+		for (let x = y & 1; x < N; x += 2) {
+			const i = row + x;
+			brDir[i] = p > 0 && (p === 255 || (rnd() & 255) < p) ? rnd() & 3 : -1;
+		}
+	}
+	for (let y = 0; y < N; y++) {
+		const row = y * N;
+		for (let x = (y + 1) & 1; x < N; x += 2) {
+			const i = row + x;
+			const l = x > 0 ? i - 1 : i + N - 1;
+			const r = x < N - 1 ? i + 1 : i - N + 1;
+			const u = y > 0 ? i - N : i + N * (N - 1);
+			const d = y < N - 1 ? i + N : i - N * (N - 1);
+			const cl = (brDir[l] === 1) + (brDir[r] === 0) + (brDir[u] === 3) + (brDir[d] === 2);
+			if (cl === 0) continue;
+			let t = rnd() % cl, m = -1;
+			if (brDir[l] === 1 && t-- === 0) m = l;
+			else if (brDir[r] === 0 && t-- === 0) m = r;
+			else if (brDir[u] === 3 && t-- === 0) m = u;
+			else m = d;
+			brPartner[i] = m;
+			brPartner[m] = i;
+		}
+	}
+	for (let i = 0; i < CELLS; i++) {
+		const m = brPartner[i];
+		b[i] = a[m < 0 ? i : m];
+	}
 }
 
 // gather in symmetric L+R / U+D pairs keeps float64 diffusion exact under mirror flip
@@ -119,15 +171,43 @@ function reactPass(r, g, b, rate) {
 	}
 }
 
+// the cap limits production, not storage: once a channel holds its cap the sources stop
+// feeding and the stored color keeps diffusing, so mass stays conserved
 function sourcePass(src, ch) {
-	const r = ch[0], g = ch[1], b = ch[2];
-	for (let i = 0; i < CELLS; i++) {
-		if (r[i] > MAXV) r[i] = MAXV;
-		if (g[i] > MAXV) g[i] = MAXV;
-		if (b[i] > MAXV) b[i] = MAXV;
-		const s = src[i];
-		if (s > 0) ch[s - 1][i] = MAXV;
+	const base = settings.maxColor;
+	const perCell = settings.territoryCap;
+	for (let c = 0; c < 3; c++) {
+		const a = ch[c];
+		if (!(base < Infinity)) {
+			for (let i = 0; i < CELLS; i++) {
+				if (a[i] > MAXV) a[i] = MAXV;
+				if (src[i] === c + 1) a[i] = MAXV;
+			}
+			continue;
+		}
+		const cap = base + perCell * grid.count[c];
+		let total = 0;
+		for (let i = 0; i < CELLS; i++) {
+			if (a[i] > MAXV) a[i] = MAXV;
+			total += a[i];
+		}
+		for (let i = 0; i < CELLS; i++) {
+			if (src[i] !== c + 1) continue;
+			const room = cap - (total - a[i]);
+			const v = room >= MAXV ? MAXV : room > 0 ? room : 0;
+			total += v - a[i];
+			a[i] = v;
+		}
 	}
+}
+
+// a cell belongs to its strongest channel; ties keep the lower channel
+function cellOwner(r, g, b) {
+	let top = 0, ch = -1;
+	if (r > 0) { top = r; ch = 0; }
+	if (g > top) { top = g; ch = 1; }
+	if (b > top) ch = 2;
+	return ch;
 }
 
 // a cell belongs to its strongest channel; cells held by 2+ channels count as contested
@@ -140,33 +220,21 @@ function countPass(r, g, b) {
 		const held = (vr > 0) + (vg > 0) + (vb > 0);
 		if (held === 0) continue;
 		if (held > 1) mixed++;
-		let top = 0, ch = -1;
-		if (vr > 0) { top = vr; ch = 0; }
-		if (vg > top) { top = vg; ch = 1; }
-		if (vb > top) { ch = 2; }
-		count[ch]++;
+		count[cellOwner(vr, vg, vb)]++;
 	}
 	grid.mixed = mixed;
 }
 
-function capPass(ch) {
-	const base = settings.maxColor;
-	if (!(base < Infinity)) return false;
-	const perCell = settings.territoryCap;
+// paint/clear touch one cell, so undo its old ownership and recount from the live values
+function adjustCount(i, r, g, b) {
 	const count = grid.count;
-	let changed = false;
-	for (let c = 0; c < 3; c++) {
-		const cap = base + perCell * count[c];
-		const a = ch[c];
-		let total = 0;
-		for (let i = 0; i < CELLS; i++) total += a[i];
-		if (total <= cap) continue;
-		changed = true;
-		if (cap <= 0) { a.fill(0); continue; }
-		const scale = cap / total;
-		for (let i = 0; i < CELLS; i++) a[i] *= scale;
-	}
-	return changed;
+	const held = (r > 0) + (g > 0) + (b > 0);
+	if (held > 0) count[cellOwner(r, g, b)]--;
+	if (held > 1) grid.mixed--;
+	const nr = grid.ch[0][i], ng = grid.ch[1][i], nb = grid.ch[2][i];
+	const nHeld = (nr > 0) + (ng > 0) + (nb > 0);
+	if (nHeld > 0) count[cellOwner(nr, ng, nb)]++;
+	if (nHeld > 1) grid.mixed++;
 }
 
 // explicit spread is only stable while a neighbour share stays <= 255/1024 per round,
@@ -178,21 +246,30 @@ function simStep() {
 	const sc = 1 / rounds;
 	const sub = rate * sc;
 	const decay = settings.deplete;
+	const brown = settings.brownian;
 	for (let r = 0; r < rounds; r++) {
-		for (let c = 0; c < 3; c++) {
-			spreadPass(c, ch[c], back[c], ch[(c + 1) % 3], ch[(c + 2) % 3], r === 0 ? decay : 0, sub, sc);
+		let cur = ch, nxt = back;
+		if (brown > 0) {
+			for (let c = 0; c < 3; c++) brownianPass(ch[c], back[c]);
+			const t0 = cur;
+			cur = nxt;
+			nxt = t0;
 		}
-		sourcePass(grid.src, back);
 		for (let c = 0; c < 3; c++) {
-			// ch is grid.ch, so the old current buffer must be read before it is overwritten
-			const cur = ch[c];
-			grid.ch[c] = back[c];
-			grid.back[c] = cur;
+			spreadPass(c, cur[c], nxt[c], cur[(c + 1) % 3], cur[(c + 2) % 3], r === 0 ? decay : 0, sub, sc);
+		}
+		sourcePass(grid.src, nxt);
+		// with brownian the round already wrote the result into ch
+		if (nxt === back) {
+			for (let c = 0; c < 3; c++) {
+				const t = ch[c];
+				ch[c] = back[c];
+				back[c] = t;
+			}
 		}
 	}
 	reactPass(ch[0], ch[1], ch[2], settings.react);
 	countPass(ch[0], ch[1], ch[2]);
-	if (capPass(ch)) countPass(ch[0], ch[1], ch[2]);
 }
 
 function simCount() {
@@ -201,15 +278,22 @@ function simCount() {
 
 function simPaint(i, c) {
 	if (c === CH_NONE) { simClear(i); return; }
+	const ch = grid.ch;
+	const r = ch[0][i], g = ch[1][i], b = ch[2][i];
 	grid.src[i] = c + 1;
-	grid.ch[c][i] = MAXV;
+	ch[c][i] = MAXV;
+	// count must stay fresh between steps: the cap in sourcePass reads it
+	adjustCount(i, r, g, b);
 }
 
 function simClear(i) {
+	const ch = grid.ch;
+	const r = ch[0][i], g = ch[1][i], b = ch[2][i];
 	grid.src[i] = 0;
-	grid.ch[0][i] = 0;
-	grid.ch[1][i] = 0;
-	grid.ch[2][i] = 0;
+	ch[0][i] = 0;
+	ch[1][i] = 0;
+	ch[2][i] = 0;
+	adjustCount(i, r, g, b);
 }
 
 function simReset() {

@@ -134,8 +134,10 @@ getObj().data().action()
 
 [rewritten each phase, never accumulated. only constraints that matter right now. delete lines that stopped mattering.]
 
-plan 0.1.3 (hover probe + substepped diffusion): rule changes verify rounds_fill, deplete_zero,
-cap_flat, cap_territory, conserve_saturated, and mirror in sim_smoke; UI changes verify dom_smoke.
+plan 0.1.4 (max color production cap + brownian shuffle): rule changes verify cap_flat,
+cap_territory, brownian_fill, brownian_uniform and the conserve cases in sim_smoke; far-field
+speed via line_probe brown runs; UI changes verify dom_smoke. brownian must stay off by default
+and uncapped paths bit-identical.
 
 ## housekeeping
 

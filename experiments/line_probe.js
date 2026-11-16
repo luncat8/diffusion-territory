@@ -44,18 +44,19 @@ const probe = () => {
 // seconds of live play at 60fps = steps * speed / 60
 const CHECKS = [100, 300, 1000, 3000, 10000, 30000];
 const CHECKS_FAST = [250, 500, 1000, 2000, 4000, 8000];
+const CHECKS_MID = [100, 300, 1000, 3000, 10000];
 
-const runCase = (name, rate, keepSource, deplete, checks, paint) => {
+const runCase = (name, rate, keepSource, deplete, checks, paint, brown = 0) => {
 	sim.simReset();
 	S.deplete = deplete; S.diffuse = rate; S.react = 0;
-	S.maxColor = Infinity; S.territoryCap = 0;
+	S.maxColor = Infinity; S.territoryCap = 0; S.brownian = brown;
 	clearCross();
 	paint();
 	if (!keepSource) for (let i = 0; i < G.cells; i++) G.src[i] = 0;
 	let step = 0;
 	for (let i = 0; i < checks.length; i++) {
 		while (step < checks[i]) { sim.simStep(); step++; }
-		console.log("case=" + name + " rate=" + rate + " deplete=" + deplete +
+		console.log("case=" + name + " rate=" + rate + " brown=" + brown + " deplete=" + deplete +
 			" step=" + step + " " + probe());
 	}
 };
@@ -67,3 +68,5 @@ runCase("line_src", 1020, true, 0, CHECKS_FAST, paintLine);
 runCase("point_src", 1020, true, 0, CHECKS_FAST, paintPoint);
 runCase("line_init", 128, false, 0, CHECKS, paintLine);
 runCase("line_src", 128, true, 1, CHECKS, paintLine);
+runCase("line_src", 128, true, 0, CHECKS_MID, paintLine, 64);
+runCase("line_src", 128, true, 0, CHECKS_MID, paintLine, 255);

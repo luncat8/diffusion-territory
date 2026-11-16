@@ -74,6 +74,31 @@ inflow, so inventory <= d evaporates; a deplete=1 line source pins at reach=7 by
 bit-identical at step 30000.
 Diagnose slow motion with the hover probe (0.1 resolution), never with pixel colors.
 
+## a total cap must limit production, never rescale the field (0.1.4)
+
+Rescaling a whole channel by `cap / total` every step to enforce "player can keep N units"
+destroys mass: the far field (< 1 display unit) is multiplied by `cap/total < 1` each step and
+decays geometrically to black, leaving only the pinned source dot — the map reads as "diffusion
+stopped", even though the relative gradient keeps diffusing. Enforce the cap on the source
+instead: pin each source cell to `min(MAXV, cap - (total - its value))`. The total then saturates
+at the cap, stored color is never destroyed, and the field keeps diffusing the held mass. Watch
+out for the stale-count variant: a territory-dependent cap read from a count that predates the
+freshly painted source (count 0) caps at `maxColor` alone or 0 and starves the source on step
+one — keep the count fresh O(1) in paint/clear (one cell's ownership changes, undo + recount).
+
+## random swap passes need a full snapshot phase before the accept phase (0.1.4)
+
+A "randomly swap nearest cells" pass written row-interleaved (propose evens of row y, accept
+odds of row y, next row) breaks in a subtle way: odds in row y read the down neighbour's
+direction from row y+1, which is only written in the NEXT outer iteration — i.e. they read the
+PREVIOUS pass's stale direction. The partner mapping silently stops being a permutation (724
+duplicate + 724 missing reads on 128²) and mass is created/lost every step until the field
+collapses to zero. A first pass on a fresh zero scratch can look perfect; the bug shows from the
+second pass on. Fix: write ALL proposals first, then accept. Also make multi-claimer acceptance
+uniform (pick `rnd() % claimers`): a "later claimer replaces with 1/2" tiebreak biases the last
+checked direction and drifts the field. Verify with a mass-drift case (source cut off) and a
+uniform-field no-op case, not by eye.
+
 ## node smoke of classic scripts without a browser (0.1.0)
 
 experiments/dom_smoke.js loads index.html, extracts the script order and the ids, stubs just

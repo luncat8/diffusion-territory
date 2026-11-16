@@ -169,7 +169,7 @@ for (let i = 0; i < G.cells; i++) {
 }
 console.log("case=deplete_zero frames=5000 min=" + minV.toFixed(6) + " round_255=" + round255 + " cells=" + G.cells);
 
-// maxColor flat cap holds total color <= maxColor regardless of spread
+// maxColor flat cap: sources stop feeding at the cap, the field keeps diffusing the stored mass
 sim.simReset();
 S.deplete = 0; S.diffuse = 128; S.react = 0;
 S.maxColor = 400; S.territoryCap = 0;
@@ -179,7 +179,8 @@ sim.simPaint(at(65, 64), sim.CH_R);
 run(200);
 let sumFlat = 0;
 for (let i = 0; i < G.cells; i++) sumFlat += G.ch[0][i];
-console.log("case=cap_flat max=400 r_cells=" + G.count[0] + " total=" + sumFlat.toFixed(6));
+console.log("case=cap_flat max=400 r_cells=" + G.count[0] + " total=" + sumFlat.toFixed(6) +
+	" src=" + G.ch[0][at(64, 64)].toFixed(2) + " d16=" + G.ch[0][at(64, 48)].toFixed(2));
 
 // territory-dependent cap: 2 boxed-in cells with maxColor=0, territoryCap=200 => cap 400
 sim.simReset();
@@ -195,7 +196,8 @@ for (let y = 62; y <= 66; y++) {
 run(50);
 let sumTerr = 0;
 for (let i = 0; i < G.cells; i++) sumTerr += G.ch[0][i];
-console.log("case=cap_territory max=0 per_cell=200 r_cells=" + G.count[0] + " total=" + sumTerr.toFixed(6));
+console.log("case=cap_territory max=0 per_cell=200 r_cells=" + G.count[0] +
+	" total=" + sumTerr.toFixed(6) + " src=" + G.ch[0][at(64, 64)].toFixed(2));
 S.maxColor = Infinity; S.territoryCap = 0;
 
 // rates above 255 run as ceil(rate/255) stable rounds: far field fills ~rounds times faster
@@ -210,3 +212,28 @@ for (let i = 0; i < G.cells; i++) {
 	if (G.ch[0][i] > maxFill) maxFill = G.ch[0][i];
 }
 console.log("case=rounds_fill rate=1020 frames=2000 min=" + minFill.toFixed(6) + " max=" + maxFill.toFixed(6));
+
+// brownian: swaps conserve mass exactly and mix the far field faster than pure diffusion
+sim.simReset();
+S.deplete = 0; S.diffuse = 128; S.react = 0;
+S.brownian = 255;
+clearCross(64);
+for (let y = 0; y < N; y++) sim.simPaint(at(64, y), sim.CH_R);
+for (let i = 0; i < G.cells; i++) G.src[i] = 0;
+const brPre = scan()[0];
+run(2000);
+const brTot = scan()[0];
+let brMin = MAXV;
+for (let i = 0; i < G.cells; i++) if (G.ch[0][i] < brMin) brMin = G.ch[0][i];
+console.log("case=brownian_fill rate=128 brownian=255 frames=2000 drift=" + (brTot - brPre).toExponential(3) +
+	" min=" + brMin.toFixed(6) + " corner=" + G.ch[0][at(0, 0)].toFixed(2));
+
+// brownian on a uniform field is a no-op: equal values swap into place
+sim.simReset();
+S.deplete = 0; S.diffuse = 0; S.react = 0; S.brownian = 255;
+for (let c = 0; c < 3; c++) for (let i = 0; i < G.cells; i++) G.ch[c][i] = 100;
+run(50);
+let uniBad = 0;
+for (let c = 0; c < 3; c++) for (let i = 0; i < G.cells; i++) if (G.ch[c][i] !== 100) uniBad++;
+console.log("case=brownian_uniform brownian=255 frames=50 bad_cells=" + uniBad);
+S.brownian = 0;

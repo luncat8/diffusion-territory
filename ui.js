@@ -2,7 +2,7 @@
 // edit for: control set, ranges, readout format
 
 const STATS_MS = 200;
-const RANGES = ["deplete", "diffuse", "react", "territoryCap", "speed"];
+const RANGES = ["deplete", "diffuse", "brownian", "react", "territoryCap", "speed"];
 const PAIRS = [[0, 1], [0, 2], [1, 0], [1, 2], [2, 0], [2, 1]];
 const CAP_STEPS = [
 	0, 50, 100, 150, 200, 250, 300, 400, 500, 600, 800,
