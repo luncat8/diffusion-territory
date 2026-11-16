@@ -19,6 +19,7 @@ const makeEl = id => {
 		value: "",
 		checked: false,
 		disabled: false,
+		style: {},
 		classes: new Set(),
 		classList: {
 			toggle(name, on) { on ? e.classes.add(name) : e.classes.delete(name); }
@@ -165,6 +166,14 @@ mc.dispatch("input");
 console.log("dom=cap init_lbl=" + mcInitLbl + " init_dis=" + tcInitDis +
 	" on_dis=" + tcOnDis + " max=" + S.maxColor + " max_lbl=" + els.get("maxColorVal").textContent +
 	" per_cell=" + S.territoryCap + " per_lbl=" + els.get("territoryCapVal").textContent);
+
+const probe = els.get("probe");
+canv.dispatch("pointermove", { clientX: 356, clientY: 256, button: 0, shiftKey: false, pointerId: 4 });
+console.log("dom=probe display=" + probe.style.display + " xy=" + els.get("probeXY").textContent +
+	" r=[" + els.get("probeR").textContent + "] g=[" + els.get("probeG").textContent +
+	"] b=[" + els.get("probeB").textContent + "]");
+canv.dispatch("pointerleave", {});
+console.log("dom=probe_hide display=" + probe.style.display);
 
 sandbox.window.handlers.keydown({ key: "c", preventDefault() {} });
 steps(2);
