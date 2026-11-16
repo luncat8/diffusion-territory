@@ -49,15 +49,16 @@ function nbRate(va, vb, rate, can1, can2, r1, r2) {
 }
 
 // gather in symmetric L+R / U+D pairs keeps float64 diffusion exact under mirror flip
-function spreadPass(c, cur, next, a, b, d, rate) {
+// sc time-dilates cross rates so substepped rounds keep the same per-step balance
+function spreadPass(c, cur, next, a, b, d, rate, sc) {
 	const c1 = (c + 1) % 3;
 	const c2 = (c + 2) % 3;
 	const allow = settings.crossAllow;
 	const cross = settings.crossRate;
 	const can1 = allow[c][c1] || allow[c1][c];
 	const can2 = allow[c][c2] || allow[c2][c];
-	const r1 = cross[c][c1];
-	const r2 = cross[c][c2];
+	const r1 = cross[c][c1] * sc;
+	const r2 = cross[c][c2] * sc;
 	let i = 0;
 	for (let y = 0; y < N; y++) {
 		const up = (y > 0 ? y - 1 : N - 1) * N;
@@ -168,23 +169,30 @@ function capPass(ch) {
 	return changed;
 }
 
+// explicit spread is only stable while a neighbour share stays <= 255/1024 per round,
+// so rates above 255 run as several stable rounds; deplete still taxes once per step
 function simStep() {
 	const ch = grid.ch, back = grid.back;
 	const rate = settings.diffuse;
+	const rounds = rate > MAXV ? Math.ceil(rate / MAXV) : 1;
+	const sc = 1 / rounds;
+	const sub = rate * sc;
 	const decay = settings.deplete;
-	for (let c = 0; c < 3; c++) {
-		spreadPass(c, ch[c], back[c], ch[(c + 1) % 3], ch[(c + 2) % 3], decay, rate);
+	for (let r = 0; r < rounds; r++) {
+		for (let c = 0; c < 3; c++) {
+			spreadPass(c, ch[c], back[c], ch[(c + 1) % 3], ch[(c + 2) % 3], r === 0 ? decay : 0, sub, sc);
+		}
+		sourcePass(grid.src, back);
+		for (let c = 0; c < 3; c++) {
+			// ch is grid.ch, so the old current buffer must be read before it is overwritten
+			const cur = ch[c];
+			grid.ch[c] = back[c];
+			grid.back[c] = cur;
+		}
 	}
-	sourcePass(grid.src, back);
-	reactPass(back[0], back[1], back[2], settings.react);
-	countPass(back[0], back[1], back[2]);
-	if (capPass(back)) countPass(back[0], back[1], back[2]);
-	for (let c = 0; c < 3; c++) {
-		// ch is grid.ch, so the old current buffer must be read before it is overwritten
-		const cur = ch[c];
-		grid.ch[c] = back[c];
-		grid.back[c] = cur;
-	}
+	reactPass(ch[0], ch[1], ch[2], settings.react);
+	countPass(ch[0], ch[1], ch[2]);
+	if (capPass(ch)) countPass(ch[0], ch[1], ch[2]);
 }
 
 function simCount() {
