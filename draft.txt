@@ -64,6 +64,14 @@ as for reaction we should make it so function that if one of reagent has very lo
 
 implement some presets-test scenes to visually test some typical interesting situations
 
+save load gui settings to url. skip default
+
+prototype a playable objective. then use the existing scenes to measure whether pressure, production, and reactions give players meaningful choices.
+
+add some dynamic minimal GUI panel that is useful for this objectiove or for this game mode - so user will not search across full settings what is useful now. 
+and show some useful statistics related to achieved progression to target goal.
+
+
 ==========================
 
 

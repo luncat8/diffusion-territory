@@ -68,6 +68,7 @@ getObj().data().action()
 	tick.js — owns step order. edit for phase order.
 	view.js — owns canvas, cursor readout, source marks, player & pair stats. edit for color/UI of the map.
 	controls.js — owns panel widgets, pair toggles, reaction mode/dir controls, and scene selection. edit for sliders and buttons.
+	url-settings.js — owns shareable URL persistence for GUI settings. edit for URL encoding and validation.
 	loop.js — owns pacing and stats cadence. edit for frame loop.
 	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
 	prototype/ — archived diffusion + Brownian + multigrid V-cycle prototype.

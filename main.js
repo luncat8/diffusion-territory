@@ -8,9 +8,10 @@ const Main = {
 		Field.init(128, 128);
 		Gas.init(Field.w, Field.h);
 		View.init($('canv'), $('tip'));
+		UrlSettings.load();
 		Controls.build();
 		Main.wire();
-		Main.loadScene(Settings.scene);
+		Main.reset();
 		Loop.start();
 	},
 
@@ -23,6 +24,7 @@ const Main = {
 	pause() {
 		Settings.paused = Settings.paused ? 0 : 1;
 		Controls.sync();
+		UrlSettings.save();
 	},
 
 	single() {
@@ -35,6 +37,7 @@ const Main = {
 	loadScene(index) {
 		Presets.apply(Settings, index);
 		Main.reset();
+		UrlSettings.save();
 	},
 
 	reset() {

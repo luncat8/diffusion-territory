@@ -194,6 +194,7 @@ const Controls = {
 	refresh() {
 		Controls.sync();
 		View.stats($('stats'));
+		UrlSettings.save();
 	},
 
 	setPair(def, p, on) {
@@ -230,6 +231,7 @@ const Controls = {
 		if (def.index === undefined) Settings[def.key] = +input.value;
 		else Settings[def.key][def.index] = +input.value;
 		Controls.show(def, input, val);
+		UrlSettings.save();
 	},
 
 	show(def, input, val) {
@@ -250,6 +252,7 @@ const Controls = {
 	pick(p) {
 		Settings.paint = p;
 		Controls.sync();
+		UrlSettings.save();
 	},
 
 	pairLive(def, p) {

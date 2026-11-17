@@ -30,7 +30,7 @@ function stubCanvas(window) {
 	});
 }
 
-const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
+const dom = new JSDOM(html, { url: 'https://example.test/', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
 const { window } = dom;
 const scope = name => window.eval(name);
 const doc = window.document;
@@ -43,7 +43,7 @@ function check(name, ok, value) {
 	console.log(`check=${name} ok=${ok ? 1 : 0} value=${value}`);
 }
 
-check('boot_scripts', scripts.length === 11, scripts.join(','));
+check('boot_scripts', scripts.length === 12, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
 check('scene_presets', doc.querySelectorAll('#scene-select option').length === 6 &&
 	doc.getElementById('scene-select').value === '0', `scene=${doc.getElementById('scene-select').value}`);
@@ -171,6 +171,36 @@ for (let i = 0; i < sceneSelect.options.length; i++) {
 check('scene_selection_loads_layout_and_rules', scenesLoad, `scenes=${sceneSelect.options.length}`);
 sceneSelect.value = '0';
 sceneSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+check('url_defaults_omitted', !new URL(window.location.href).searchParams.has('dt.scene'), window.location.search);
+sceneSelect.value = '2';
+sceneSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
+const tuned = doc.getElementById('ctrl-gasSpeed');
+tuned.value = '42';
+tuned.dispatchEvent(new window.Event('input', { bubbles: true }));
+doc.getElementById('pause').click();
+const saved = new URL(window.location.href);
+check('url_scene_relative', saved.searchParams.get('dt.scene') === '2' && saved.searchParams.get('dt.gasSpeed') === '42' &&
+	!saved.searchParams.has('dt.reactMode') && saved.searchParams.get('dt.paused') === '1', saved.search);
+const restored = new JSDOM(html, { url: saved.href, runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
+check('url_reload', restored.window.eval('Settings.scene === 2 && Settings.gasSpeed === 42 && Settings.reactMode === 2 && Settings.paused === 1') &&
+	restored.window.document.getElementById('ctrl-gasSpeed').value === '42', 'scene, profile, overrides, controls');
+restored.window.close();
+const fileDom = new JSDOM(html, { url: 'file:///tmp/index.html', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
+const fileSlider = fileDom.window.document.getElementById('ctrl-gasSpeed');
+fileSlider.value = '42';
+fileSlider.dispatchEvent(new fileDom.window.Event('input', { bubbles: true }));
+const fileReload = new JSDOM(html, { url: fileDom.window.location.href, runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
+check('url_file_roundtrip', fileReload.window.eval('Settings.gasSpeed === 42'), fileDom.window.location.href);
+fileDom.window.close();
+fileReload.window.close();
+const invalid = new JSDOM(html, { url: 'https://example.test/?dt.scene=999&dt.gasSpeed=NaN&dt.mixRate.0=999', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
+check('url_invalid_ignored', invalid.window.eval('Settings.scene === 0 && Settings.gasSpeed === 65 && Settings.mixRate[0] === 50'), 'invalid values');
+invalid.window.close();
+tuned.value = '60';
+tuned.dispatchEvent(new window.Event('input', { bubbles: true }));
+check('url_restored_default_removed', !new URL(window.location.href).searchParams.has('dt.gasSpeed'), window.location.search);
+doc.getElementById('pause').click();
 
 setTimeout(() => {
 	check('raf_loop', scope('Loop').frame > 0, `frames=${scope('Loop').frame}`);
