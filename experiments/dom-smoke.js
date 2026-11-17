@@ -46,14 +46,14 @@ function check(name, ok, value) {
 check('boot_scripts', scripts.length === 10, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
 const ranges = doc.querySelectorAll('#rows input[type=range]');
-check('sliders', ranges.length === 16, `rows=${ranges.length}`);
+check('sliders', ranges.length === 27, `rows=${ranges.length}`);
 check('mix_checkboxes', ['mix-all', 'mix-rg-on', 'mix-rb-on', 'mix-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
 check('react_checkboxes', ['react-all', 'react-rg-on', 'react-rb-on', 'react-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
 check('react_mode_buttons', ['mode-mutual', 'mode-majority', 'mode-convert', 'mode-absorb'].every(id => !!doc.getElementById(id)), 'four modes');
 check('react_dir_buttons', ['dir-rg', 'dir-rb', 'dir-gb'].every(id => doc.getElementById(id) && doc.getElementById(id).hidden), 'hidden until absorb');
 check('pair_sliders', ['mix-rg', 'mix-rb', 'mix-gb', 'react-rg', 'react-rb', 'react-gb'].every(id => !!doc.getElementById(id)), 'six pair sliders');
 check('player_buttons', doc.querySelectorAll('#players button').length === 3, 'R G B');
-check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length === 15, 'seed sources');
+check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length === 60, 'seed sources');
 
 scope('Tick').run(scope('Settings'));
 scope('View').draw();
@@ -67,9 +67,9 @@ check('hover_readout', !tip.hidden && tip.textContent.includes('R ') && tip.text
 
 mouse('mousedown', 400, 400, { button: 0 });
 const cell = (400 >> 2) * 128 + (400 >> 2);
-check('click_paints', (scope('Field').src[cell] & 1) === 1, `src=${scope('Field').src[cell]}`);
+check('click_paints', scope('Field').ch[0][cell] === 255 * scope('FP_ONE'), `src=${scope('Field').src[cell]}`);
 mouse('mousedown', 400, 400, { button: 2 });
-check('right_click_erases', (scope('Field').src[cell] & 1) === 0, `src=${scope('Field').src[cell]}`);
+check('right_click_erases', scope('Field').ch[0][cell] === 0, `src=${scope('Field').src[cell]}`);
 
 const slider = doc.querySelectorAll('#rows input[type=range]')[0];
 slider.value = '35';
@@ -130,6 +130,23 @@ check('player_flow_binds', settings.playerFlow === 400, `playerFlow=${settings.p
 flowSlider.value = '0';
 flowSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
 
+for (const [id, value, expression] of [
+	['ctrl-sourceMode', '2', 'Settings.sourceMode === 2'],
+	['ctrl-sourceDominance', '3', 'Settings.sourceDominance === 3'],
+	['ctrl-sourceThreshold', '0.5', 'Settings.sourceThreshold === 0.5'],
+	['ctrl-reactExponent', '2', 'Settings.reactExponent === 2'],
+	['ctrl-response-0', '35', 'Settings.response[0] === 35'],
+	['ctrl-response-5', '-20', 'Settings.response[5] === -20'],
+	['ctrl-showSources', '1', 'Settings.showSources === 1'],
+]) {
+	const input = doc.getElementById(id);
+	input.value = value;
+	input.dispatchEvent(new window.Event('input', { bubbles: true }));
+	check(id + '_binds', scope(expression), value);
+}
+scope('Settings').sourceMode = 0;
+scope('Settings').sourceDominance = 2;
+
 check('stats_pair_names', doc.getElementById('stats').textContent.includes('mix RB') &&
 	doc.getElementById('stats').textContent.includes('pairs  RG'), 'mix RB + pairs line');
 
@@ -138,7 +155,7 @@ check('pause_toggles', scope('Settings').paused === 1, doc.getElementById('pause
 doc.getElementById('pause').click();
 doc.getElementById('reset').click();
 const resetField = scope('Field');
-check('reset_reseeds', Array.from(resetField.src).filter(Boolean).length === 15 &&
+check('reset_reseeds', Array.from(resetField.src).filter(Boolean).length === 60 &&
 	resetField.total[0] > 0 && resetField.total[1] > 0 && resetField.total[2] > 0, 'three sources with heaps');
 
 setTimeout(() => {

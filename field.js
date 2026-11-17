@@ -7,11 +7,13 @@ const FP_HALF = FP_ONE >> 1;
 const NO_COLOR = 3;
 const REF_OWNED = 16;
 const CAP_DEF = 255;
+const CONTROL_MIN = 0.05 * CAP_DEF * FP_ONE;
 const PAIR_A = [0, 0, 1];
 const PAIR_B = [1, 2, 2];
 const PAIR_NAMES = ['RG', 'RB', 'GB'];
 
 const Field = {
+	generation: 0,
 	w: 0,
 	h: 0,
 	n: 0,
@@ -44,6 +46,7 @@ const Field = {
 	},
 
 	reset() {
+		this.generation++;
 		this.v.fill(0);
 		this.dom.fill(NO_COLOR);
 		this.src.fill(0);
@@ -71,7 +74,7 @@ const Field = {
 			t0 += r;
 			t1 += g;
 			t2 += b;
-			const h0 = r >= FP_ONE, h1 = g >= FP_ONE, h2 = b >= FP_ONE;
+			const h0 = r >= CONTROL_MIN, h1 = g >= CONTROL_MIN, h2 = b >= CONTROL_MIN;
 			if (h0 && h1) p0++;
 			if (h0 && h2) p1++;
 			if (h1 && h2) p2++;
@@ -83,7 +86,7 @@ const Field = {
 			}
 			const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
 			let d = NO_COLOR;
-			if (max >= FP_ONE) {
+			if (max >= CONTROL_MIN) {
 				const ties = (r === max ? 1 : 0) + (g === max ? 1 : 0) + (b === max ? 1 : 0);
 				if (ties === 1) d = r === max ? 0 : (g === max ? 1 : 2);
 			}

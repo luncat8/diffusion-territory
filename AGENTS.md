@@ -61,7 +61,7 @@ getObj().data().action()
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
 	settings.js — owns rule values and reaction mode list. edit for defaults.
 	field.js — owns planar Q12.12 grid, pair tables/metrics, analysis, and caps. edit for storage, cap formula.
-	source.js — owns source cells and shared-supply injection. edit for paint/seed/apportionment rules.
+	source.js — owns pigment painting, local production eligibility and shared-supply growth. edit for paint/seed/production rules.
 	gas.js — owns staggered gas dynamics, per-pair transport, depletion. edit for gas physics.
 	react.js — owns per-pair reaction modes (mutual/majority/convert/absorb) and pair scoring. edit for reaction laws.
 	tick.js — owns step order. edit for phase order.
@@ -139,10 +139,10 @@ getObj().data().action()
 
 ## current workstream
 
-plans 0.2.0–0.2.3 (archive/), gameplay draft 0.3.0-draft.md. constraints:
+plans 0.2.0–0.2.3 and 0.3.1 (archive/). constraints:
 	planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
 	after sim change: checks.js; after UI/boot change: dom-smoke.js.
-latest: reaction modes (`mutual`/`majority`/`convert`/`absorb` + `reactDir`), shared `playerFlow` supply, pair scoring in `#stats`, and `react.js` split landed in 0.2.3.
+latest: 0.3.1 local production, 5% control threshold, smooth fractional reactions, directional gradient response; `npm run checks` includes concentration regressions.
 
 ## housekeeping
 

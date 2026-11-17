@@ -1,4 +1,4 @@
-// owns: canvas rendering, source painting, cursor readout, source marks, and stats
+// owns: canvas rendering, pigment painting, cursor readout, production marks, and stats
 // edit for: color mapping, tooltip fields, pair score formatting, canvas interactions
 
 const View = {
@@ -61,6 +61,10 @@ const View = {
 
 	paintCell(i, player, on) {
 		Source.paint(i % Field.w, (i / Field.w) | 0, player, on, Settings.brush);
+		Field.analyze();
+		Field.caps(Settings.capBase, Settings.capTerritory, Settings.maxMass);
+		Source.prepare(Settings);
+		Field.analyze();
 	},
 
 	leave() {
@@ -75,7 +79,7 @@ const View = {
 		Field.sample(x, y, c);
 		const p = c[0] + c[1] + c[2];
 		View.text =
-			x + ',' + y + '  ' + (c[6] ? 'src ' + View.maskName(c[6]) : 'no src') + '  ' + View.state(c) +
+			x + ',' + y + '  ' + (c[6] ? 'growth ' + View.maskName(c[6]) : 'no growth') + '  ' + View.state(c) +
 			'\nR ' + View.fixed(c[0], c[3]) + '  G ' + View.fixed(c[1], c[4]) + '  B ' + View.fixed(c[2], c[5]) +
 			'\npressure ' + p + '  cap R ' + View.capText(0) + ' G ' + View.capText(1) + ' B ' + View.capText(2);
 		View.tip.textContent = View.text;
@@ -86,7 +90,9 @@ const View = {
 
 	state(c) {
 		if (c[7] !== NO_COLOR) return View.names[c[7]];
-		return c[0] > 0 || c[1] > 0 || c[2] > 0 ? 'mixed' : 'empty';
+		const max = Math.max(c[0] * FP_ONE + c[3], c[1] * FP_ONE + c[4], c[2] * FP_ONE + c[5]);
+		if (!max) return 'empty';
+		return max < CONTROL_MIN ? 'uncontrolled' : 'contested';
 	},
 
 	capText(p) {
@@ -121,7 +127,7 @@ const View = {
 		this.imgCtx.putImageData(this.pix, 0, 0);
 		this.ctx.imageSmoothingEnabled = false;
 		this.ctx.drawImage(this.img, 0, 0, this.canvas.width, this.canvas.height);
-		this.marks();
+		if (Settings.showSources) this.marks();
 		this.cursor();
 	},
 
@@ -188,7 +194,7 @@ const View = {
 		for (let p = 0; p < 3; p++) {
 			const mass = Math.round(Field.total[p] / FP_ONE);
 			const lim = Settings.maxMass > 0 ? '/' + (Settings.maxMass * 1000) : '';
-			s += View.names[p] + ' cells ' + Field.owned[p] + '  src ' + Field.srcCount[p] +
+			s += View.names[p] + ' cells ' + Field.owned[p] + '  growth ' + Field.srcCount[p] +
 				'  cap ' + View.capText(p) + '  mass ' + mass + lim + '\n';
 		}
 		s += 'pairs  ' + View.pairStat(0) + ' · ' + View.pairStat(1) + ' · ' + View.pairStat(2) + '\n';

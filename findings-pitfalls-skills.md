@@ -178,18 +178,19 @@ Two traps when a panel grows to grouped widgets:
 listener, which jsdom reports as silence rather than a failing check. Assert the setting changed
 after dispatching the event, not just that the event listener was attached.
 
-## reaction sub-quantum floor and gain-separate conversion scaling
+## fractional reaction demand and gain-separate conversion scaling
 
-Pure truncation `(min(a, b) * share) | 0` stalls whenever `min(a, b) < 1 / share` (`0.1` display
-units at `rate = 5`, `2.44` display units at `rate = 1`), leaving permanent residue. Clamp positive
-pair demand to `>= 1` quantum before channel-overdraw scaling so slow reactions clear to exact zero.
+Pure truncation stalls below one quantum; a minimum-one-quantum floor instead destroys weak signals
+too quickly. Accumulate fractional reaction demand per cell/pair/direction, round only at application,
+and clamp integer losses against current availability. Clear carries on reset and inactive demands.
+With concentration-dependent reactions, dilute pigment must survive much longer than dense overlap.
 
 For mass-conserving conversion (`u += d, v -= d`), scale each channel's gains against `cap[c] - x[c]`
 and `budget[c] - total[c]` independently of losses (`d` bounded by `min(sLoss[loser], sGain[winner])`).
 Scaling on net `gain - loss` can overshoot `cap` by 1 quantum after independent integer truncation,
 and a single cell-wide scale factor stalls an unrelated pair `GB` whenever `R` sits at its cap.
 
-## shared player supply creates a non-monotonic source-count sweet spot
+## static-source reference: shared supply creates a source-count sweet spot
 
 Apportioning a player's per-frame flow limit `playerFlow` across active sources via running rational
 division (`add = w * (room / want) | 0`, last source gets exact `room`) avoids scanline starvation
@@ -198,4 +199,13 @@ depletion, source count `K` self-limits along an inverted-U curve (`playerFlow =
 `K = 1` claims `1521` cells (ceiling-choked), `K = 2` peaks at `3475` (`peak = 255`), `K = 8` drops
 to `2845` (`peak = 75`), `K = 64` collapses to `576` (`peak = 9`).
 
+## eligibility must not grant transport privileges
 
+When every eligible cell can produce, source-specific purge/pinning rules become territory-wide
+forces unrelated to concentration gradients. Remove those rules rather than rasterizing dynamic
+production into the old hub physics. Snapshot rival concentrations before per-species edge passes
+so an earlier species transfer does not change another species' signal within the same substep.
+
+A 64-cell RG line after 300 ticks (2% mutual reaction, production 5, speed 20, damping 100) has
+green traces increasing toward the border: positions 0/8/16/24/31 = 0.011/0.301/4.536/28.206/106.208.
+R→G attraction 50 raises red at cell 32 from 106.208 to 186.577 without target searches.

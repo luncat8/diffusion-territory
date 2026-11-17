@@ -9,6 +9,9 @@ const Gas = {
 	damp: 0,
 	invRef: 0,
 	lastMode: -1,
+	response: null,
+	signal: null,
+	responseStep: 1,
 	allow: [7, 7, 7],
 	pq: [1, 1, 1, 1, 1, 1, 1, 1, 1],
 	bx: null,
@@ -37,6 +40,7 @@ const Gas = {
 		this.sax = [new Float64Array(this.n), new Float64Array(this.n), new Float64Array(this.n)];
 		this.say = [new Float64Array(this.n), new Float64Array(this.n), new Float64Array(this.n)];
 		this.ptot = new Int32Array(this.n);
+		this.signal = new Int32Array(this.n * 3);
 		this.outSum = new Float64Array(this.n);
 		this.outScale = new Float64Array(this.n);
 		this.reset();
@@ -104,6 +108,8 @@ const Gas = {
 	step(s) {
 		this.updateParams(s);
 		const live = this.rules(s);
+		this.response = s.response;
+		this.responseStep = 1 / Math.max(1, Math.min(2, s.substeps | 0));
 		if (this.k <= 0) {
 			this.reset();
 			return;
@@ -118,19 +124,11 @@ const Gas = {
 		else this.stepUnmixable(this.k, this.damp);
 	},
 
-	// active sources purge displaced foreign gas first so painted sources stay pure without losing mass
+	// Route bulk flow without creating or deleting any species.
 	pickDonorSpecies(d, r) {
 		const c0 = Field.ch[0], c1 = Field.ch[1], c2 = Field.ch[2];
 		const d0 = c0[d], d1 = c1[d], d2 = c2[d];
 		if (!(d0 + d1 + d2)) return -1;
-		const sm = Field.src[d];
-		if (sm) {
-			let fc = -1, fBest = 0;
-			if (!(sm & 1) && d0 > fBest) { fBest = d0; fc = 0; }
-			if (!(sm & 2) && d1 > fBest) { fBest = d1; fc = 1; }
-			if (!(sm & 4) && d2 > fBest) { fBest = d2; fc = 2; }
-			if (fc >= 0) return fc;
-		}
 		const r0 = c0[r], r1 = c1[r], r2 = c2[r];
 		let c = -1, best = 0;
 		if (d0 > 0 && r0 > best) { best = r0; c = 0; }
@@ -192,12 +190,12 @@ const Gas = {
 	// VOF surface tension: pull isolated <=1-neighbor droplets back to their main interface
 	smoothInterface(cap) {
 		Field.analyze();
-		const w = this.w, h = this.h, dom = Field.dom, ch = Field.ch, src = Field.src;
+		const w = this.w, h = this.h, dom = Field.dom, ch = Field.ch;
 		for (let y = 0; y < h; y++) {
 			const row = y * w;
 			for (let x = 0; x < w; x++) {
 				const a = row + x, da = dom[a];
-				if (da === NO_COLOR || (src[a] & (1 << da))) continue;
+				if (da === NO_COLOR) continue;
 				const sa = this.nbCount(x, y, da);
 				if (sa >= 2) continue;
 				for (let d = 0; d < 4; d++) {
@@ -205,7 +203,7 @@ const Gas = {
 					const ny = d === 2 ? y + 1 : (d === 3 ? y - 1 : y);
 					if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
 					const b = ny * w + nx, db = dom[b];
-					if (db === NO_COLOR || db === da || (src[b] & (1 << db))) continue;
+					if (db === NO_COLOR || db === da) continue;
 					const sbForA = this.nbCount(nx, ny, da) - 1;
 					const saForB = this.nbCount(x, y, db) - 1;
 					const sb = this.nbCount(nx, ny, db);
@@ -324,6 +322,14 @@ const Gas = {
 			const g = f * (oa * (1 - qa) + ob * (1 - qb)) / other;
 			fl = damp * (1 - 0.25 * g) * fl + k * (1 - g) * (ra - rb);
 		}
+		for (let rival = 0; rival < 3; rival++) {
+			if (rival === c || !(alw & (1 << rival))) continue;
+			const slot = c * 2 + (rival < c ? rival : rival - 1);
+			const chi = this.response[slot] / 100 * this.responseStep;
+			const delta = (this.signal[rival * this.n + b] - this.signal[rival * this.n + a]) / (CAP_DEF * FP_ONE);
+			const drive = chi * delta;
+			fl += drive * (drive > 0 ? ra : rb);
+		}
 		if (!okAB && fl > 0) fl = 0;
 		else if (!okBA && fl < 0) fl = 0;
 		j[a] = fl;
@@ -357,6 +363,7 @@ const Gas = {
 
 	// one shared per-species face flux: opposite species cannot tie against each other through it
 	stepMixable(k, damp) {
+		this.signal.set(Field.v);
 		const w = this.w, h = this.h, n = this.n;
 		const c0 = Field.ch[0], c1 = Field.ch[1], c2 = Field.ch[2];
 		const cap = Field.cap, ptot = this.ptot;

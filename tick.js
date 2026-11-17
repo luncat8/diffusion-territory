@@ -12,6 +12,7 @@ const Tick = {
 		Field.analyze();
 		Field.caps(s.capBase, s.capTerritory, s.maxMass);
 		Source.inject(s);
+		Source.prepare(s);
 		Field.analyze();
 	},
 };

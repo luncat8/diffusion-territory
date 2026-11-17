@@ -38,7 +38,31 @@ next step: per-pair absorb asymmetry (a pair that consumes only one side) and pa
 
 
 
+we tried to implement archive/0.3.0-LLM-suggested-draft.md
+in another branch and it is not good.
+i think need another way:
+do no search cells or distance
 
+## concentration-determined behavior for most mechanics like live cells in plant
+
+example:
+RG reaction is never destroy all to 0. there is small concentration gradient comes from border line. red player set options to increase influence on green. this cause red start moving along this small green gradient to border and increase concentration to push green.
+
+## source is just any cell
+	settings to experiment with:
+	- source is any cell with one of pigment is much more then all other. implement = x, r > (g+b)*k
+	- any cell, more in low pigment, implement = f( 3 - ( r+g+b) ) 
+	- any cell, more in low pigment, only when r+g+b < threshold,  implement =  f( 3 - ( r+g+b) ) 
+
+
+
+eed add small threshold in all modes to avoid almost empty cell to spawn pigment and limit production. lets say <5% is not controlled by anyone.
+
+as for reaction we should make it so function that if one of reagent has very low concentration then reaction is very slow. like a*a*b*b or other so it fill react like 1...2% per tick and create gradient on rival territory from the border where reaction consume most of pigment
+
+## GUI
+
+implement some presets-test scenes to visually test some typical interesting situations
 
 ==========================
 

@@ -12,14 +12,23 @@ const CONTROLS = [
 	{ key: 'gasSpeed', label: 'Gas pressure speed', min: 0, max: 100, step: 1, unit: '%', hint: 'pressure wave propagation speed; 0 stops gas flow' },
 	{ key: 'gasDamping', label: 'Gas viscosity', min: 0, max: 100, step: 1, unit: '%', hint: 'momentum drag; low = bouncy acoustic waves, high = thick viscous drift' },
 	{ key: 'mixRate', label: 'Mix into other color', group: 'mix', kind: 'rate', hint: 'permeability at which each color pair enters the other color; unchecked or 0% acts as a wall' },
-	{ key: 'reactRate', label: 'Reaction', group: 'react', kind: 'rate', hint: 'per-frame reaction strength where the color pair overlaps' },
+	{ key: 'reactRate', label: 'Reaction', group: 'react', kind: 'rate', hint: 'percent of minority consumed per tick at full concentrations; dilute reagents react much slower' },
+	{ key: 'reactExponent', label: 'Reaction dilution exponent', min: 1, max: 2, step: 1, unit: '', hint: '1: slow trace consumption; 2: stronger suppression in dilute pigment' },
+	{ key: 'sourceMode', label: 'Production rule', min: 0, max: 2, step: 1, labels: ['dominance', 'low pigment', 'low pigment + threshold'], hint: 'all modes require at least 5% of the producing pigment; below 5% is uncontrolled' },
+	{ key: 'sourceDominance', label: 'Dominance multiplier k', min: 1, max: 5, step: 0.1, unit: '×', hint: 'dominance production requires own pigment > k × sum of rivals' },
+	{ key: 'sourceThreshold', label: 'Production total threshold', min: 0.05, max: 3, step: 0.05, unit: '×255', hint: 'thresholded mode produces only when total pigment is below this value' },
+	...['R toward G', 'R toward B', 'G toward R', 'G toward B', 'B toward R', 'B toward G'].map((label, index) => ({
+		key: 'response', index, label, min: -100, max: 100, step: 1, unit: '%',
+		hint: 'positive: move up rival gradient; negative: move away; requires pair mixing; 0 ignores rival',
+	})),
 	{ key: 'depletion', label: 'Depletion', min: 0, max: 5, step: 0.1, unit: '/f', hint: 'color removed from every cell each frame (1.0 = 1 of 255/f); >0 forms gradient, 0 equalizes' },
-	{ key: 'playerFlow', label: 'Player supply', min: 0, max: 2000, step: 20, unit: '/f', hint: 'total color a player injects per frame shared across all their sources; 0 = unlimited per source' },
-	{ key: 'maxMass', label: 'Total color limit', min: 0, max: 2000, step: 20, unit: 'k', hint: 'maximum total color mass a player can hold; 0 = unlimited (sources stay at 255)' },
-	{ key: 'sourceRate', label: 'Source rate', min: 0, max: 255, step: 1, unit: '/f', hint: 'maximum color a single source cell injects each frame' },
+	{ key: 'playerFlow', label: 'Player supply', min: 0, max: 2000, step: 20, unit: '/f', hint: 'total growth per player per tick shared across eligible cells; 0 = unlimited' },
+	{ key: 'maxMass', label: 'Total color limit', min: 0, max: 2000, step: 20, unit: 'k', hint: 'maximum total pigment per player; 0 = unlimited' },
+	{ key: 'sourceRate', label: 'Cell production rate', min: 0, max: 255, step: 1, unit: '/f', hint: 'pigment per eligible cell per tick before fertility and saturation; 0 disables growth' },
 	{ key: 'capBase', label: 'Max color per cell', min: 0, max: 1023, step: 1, unit: '', hint: 'per-cell ceiling on a 16-cell territory; 0 = no limit' },
 	{ key: 'capTerritory', label: 'Small territory boost', min: 0, max: 100, step: 1, unit: '%', hint: 'how far a smaller territory raises the per-cell ceiling' },
-	{ key: 'brush', label: 'Source brush', min: 0, max: 3, step: 1, unit: '', hint: 'source paint diameter in cells' },
+	{ key: 'brush', label: 'Pigment brush', min: 0, max: 3, step: 1, unit: '', hint: 'pigment paint diameter in cells' },
+	{ key: 'showSources', label: 'Production overlay', min: 0, max: 1, step: 1, labels: ['off', 'on'], hint: 'mark all cells eligible to produce pigment; shared supply may still limit growth' },
 	{ key: 'substeps', label: 'Steps per frame', min: 1, max: 2, step: 1, unit: '', hint: 'physics passes per frame' },
 ];
 
@@ -132,12 +141,12 @@ const Controls = {
 			head.append(name, val);
 			const input = document.createElement('input');
 			input.type = 'range';
-			input.id = 'ctrl-' + def.key;
+			input.id = 'ctrl-' + def.key + (def.index === undefined ? '' : '-' + def.index);
 			input.title = def.hint;
 			input.min = def.min;
 			input.max = def.max;
 			input.step = def.step;
-			input.value = Settings[def.key];
+			input.value = def.index === undefined ? Settings[def.key] : Settings[def.key][def.index];
 			input.addEventListener('input', () => Controls.edit(def, input, val));
 			row.append(head, input);
 			host.append(row);
@@ -199,14 +208,16 @@ const Controls = {
 	},
 
 	edit(def, input, val) {
-		Settings[def.key] = +input.value;
+		if (def.index === undefined) Settings[def.key] = +input.value;
+		else Settings[def.key][def.index] = +input.value;
 		Controls.show(def, input, val);
 	},
 
 	show(def, input, val) {
-		const v = Settings[def.key];
+		const v = def.index === undefined ? Settings[def.key] : Settings[def.key][def.index];
 		const offable = def.key === 'capBase' || def.key === 'maxMass' || def.key === 'playerFlow';
-		if (offable) val.textContent = v ? v + def.unit : 'off';
+		if (def.labels) val.textContent = def.labels[v];
+		else if (offable) val.textContent = v ? v + def.unit : 'off';
 		else if (def.key === 'brush') val.textContent = (v * 2 + 1) + 'px';
 		else if (def.key === 'depletion') val.textContent = v.toFixed(1) + def.unit;
 		else val.textContent = v + def.unit;
@@ -251,7 +262,7 @@ const Controls = {
 			d.node.textContent = View.dirLabel(d.p, Settings.reactDir[d.p]);
 		}
 		for (let p = 0; p < 3; p++) Controls.picks[p].classList.toggle('on', Settings.paint === p);
-		Controls.paintDot.textContent = 'paint source: left click · erase: right click';
+		Controls.paintDot.textContent = 'paint pigment: left click · erase pigment: right click';
 		$('pause').textContent = Settings.paused ? 'resume' : 'pause';
 	},
 };

@@ -41,6 +41,8 @@ const Main = {
 		Source.seed(107, 20, 2);
 		Field.analyze();
 		Field.caps(Settings.capBase, Settings.capTerritory, Settings.maxMass);
+		Source.prepare(Settings);
+		Field.analyze();
 		View.draw();
 		View.stats($('stats'));
 		Controls.sync();
