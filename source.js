@@ -1,7 +1,10 @@
-// owns: source cell placement, seeding, and budget-capped injection
-// edit for: brush shapes, initial layout, or injection formula
+// owns: source cell placement, seeding, and shared-supply / budget-capped injection
+// edit for: brush shapes, initial layout, or player supply apportionment
 
 const Source = {
+	want: [0, 0, 0],
+	room: [0, 0, 0],
+
 	paint(x, y, player, on, radius = 0) {
 		const mask = 1 << player;
 		const r = radius | 0;
@@ -12,8 +15,7 @@ const Source = {
 				if (r > 0 && dx * dx + dy * dy > r * r) continue;
 				const nx = x + dx;
 				if (nx < 0 || nx >= Field.w) continue;
-				const i = ny * Field.w + nx;
-				Field.src[i] = on ? mask : 0;
+				Field.src[ny * Field.w + nx] = on ? mask : 0;
 			}
 		}
 	},
@@ -34,27 +36,42 @@ const Source = {
 		}
 	},
 
+	// running rational apportionment splits limited flow or mass evenly across all player sources with zero rounding loss
 	inject(s) {
 		const rate = Math.round(s.sourceRate * FP_ONE);
 		if (rate <= 0) return;
-		const src = Field.src;
-		const ch = Field.ch;
-		const cap = Field.cap;
-		const budget = Field.budget;
-		const total = Field.total;
+		const src = Field.src, ch = Field.ch, cap = Field.cap, total = Field.total;
+		const want = this.want, room = this.room;
 		const defCeil = CAP_DEF * FP_ONE;
+		const flow = s.playerFlow > 0 ? Math.round(s.playerFlow * FP_ONE) : Infinity;
+		want[0] = want[1] = want[2] = 0;
 		for (let i = 0; i < Field.n; i++) {
 			const m = src[i];
 			if (!m) continue;
 			for (let p = 0; p < 3; p++) {
 				if (!(m & (1 << p))) continue;
-				const room = budget[p] - total[p];
-				if (room <= 0) continue;
-				const ceil = cap[p] || defCeil;
-				const head = ceil - ch[p][i];
+				const head = (cap[p] || defCeil) - ch[p][i];
+				if (head > 0) want[p] += rate < head ? rate : head;
+			}
+		}
+		for (let p = 0; p < 3; p++) {
+			let lim = Field.budget[p] - total[p];
+			if (flow < lim) lim = flow;
+			if (lim < 0) lim = 0;
+			room[p] = want[p] < lim ? want[p] : lim;
+		}
+		if (!(room[0] || room[1] || room[2])) return;
+		for (let i = 0; i < Field.n; i++) {
+			const m = src[i];
+			if (!m) continue;
+			for (let p = 0; p < 3; p++) {
+				if (!(m & (1 << p)) || !room[p]) continue;
+				const head = (cap[p] || defCeil) - ch[p][i];
 				if (head <= 0) continue;
-				let add = rate < room ? rate : room;
-				if (head < add) add = head;
+				const w = rate < head ? rate : head;
+				const add = room[p] >= want[p] ? w : (want[p] === w ? room[p] : (w * (room[p] / want[p])) | 0);
+				room[p] -= add;
+				want[p] -= w;
 				ch[p][i] += add;
 				total[p] += add;
 			}

@@ -20,6 +20,9 @@ function setup(over) {
 		mixRate: [50, 50, 50],
 		reactMask: 0,
 		reactRate: [10, 10, 10],
+		reactMode: 0,
+		reactDir: [0, 1, 0],
+		playerFlow: 0,
 		maxMass: 0,
 		sourceRate: 255,
 		capBase: 0,
@@ -210,12 +213,15 @@ run(1);
 check('reaction_takes_min', Field.ch[0][0] === 140 * FP_ONE && Field.ch[1][0] === 0,
 	`r=${Field.ch[0][0] / FP_ONE} g=${Field.ch[1][0] / FP_ONE}`);
 
-setup({ gasSpeed: 50, mixMask: 7, reactMask: 7, mixRate: [0, 0, 0], reactRate: [100, 100, 100], sourceRate: 0 });
+setup({ gasSpeed: 50, mixMask: 0, reactMask: 7, reactRate: [100, 100, 100], sourceRate: 0 });
 for (let y = 0; y < H; y++) {
 	for (let x = 0; x < 64; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
 	for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 50 * FP_ONE;
 }
 const ur0 = massOf(0), ug0 = massOf(1);
+run(100);
+Settings.mixMask = 7;
+Settings.mixRate = [0, 0, 0];
 run(100);
 check('unmixable_skips_reaction', massOf(0) === ur0 && massOf(1) === ug0,
 	`R:${ur0}->${massOf(0)} G:${ug0}->${massOf(1)}`);
@@ -379,18 +385,20 @@ const rm0 = [massOf(0), massOf(1)];
 run(5);
 const dRG = rm0[0] - massOf(0);
 check('react_amount_per_frame', dRG > 0 && dRG === rm0[1] - massOf(1),
-	`dR=${Math.round(dRG / FP_ONE)} dG=${Math.round(rm0[1] - massOf(1))} (5 frames x 40 units)`);
+	`dR=${Math.round(dRG / FP_ONE)} dG=${Math.round((rm0[1] - massOf(1)) / FP_ONE)}`);
 
-// 22. Pair mix rate 0 with the pair checked behaves as a wall, not as a vacuum
-setup({ gasSpeed: 60, mixMask: 7, mixRate: [0, 0, 0], sourceRate: 0 });
+// 22. Pair mix rate 0 with the pair checked never leaks even into low-density neighbor
+setup({ gasSpeed: 60, mixMask: 3, mixRate: [0, 50, 0], sourceRate: 0 });
 for (let y = 0; y < H; y++) {
 	for (let x = 0; x < 64; x++) Field.ch[0][y * W + x] = 200 * FP_ONE;
-	for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 200 * FP_ONE;
+	for (let x = 64; x < W; x++) Field.ch[1][y * W + x] = 10 * FP_ONE;
 }
 const wall0 = [massOf(0), massOf(1)];
 run(200);
-check('mix_rate_zero_is_wall', massOf(0) === wall0[0] && massOf(1) === wall0[1],
-	`R ${wall0[0] / FP_ONE | 0} -> ${massOf(0) / FP_ONE | 0}`);
+let zeroLeak = 0;
+for (let y = 0; y < H; y++) for (let x = 64; x < W; x++) zeroLeak += Field.ch[0][y * W + x];
+check('mix_rate_zero_is_wall', zeroLeak === 0 && massOf(0) === wall0[0] && massOf(1) === wall0[1],
+	`leak=${zeroLeak} mass_ok=${massOf(0) === wall0[0]}`);
 
 // 23. All pairs off is the unmixable wall, all pairs on mixes all three channels
 setup({ gasSpeed: 65, gasDamping: 15, sourceRate: 0 });
@@ -426,6 +434,97 @@ let live = 0;
 for (let i = 0; i < Field.n; i++) if (Field.ch[0][i] > 0) live++;
 check('single_quantum_spreads', live > 4000 && massOf(0) === 255 * FP_ONE,
 	`live=${live} mass_ok=${massOf(0) === 255 * FP_ONE}`);
+
+// 25. Slow reaction clears minority all the way to 0 (no sub-quantum stall)
+setup({ gasSpeed: 0, mixMask: 1, reactMask: 1, reactRate: [5, 0, 0], reactMode: 0, sourceRate: 0 });
+Field.ch[0][0] = 2 * FP_ONE;
+Field.ch[1][0] = 2 * FP_ONE;
+run(9000);
+check('react_no_subquantum_stall', Field.ch[0][0] === 0 && Field.ch[1][0] === 0,
+	`rem=${Field.ch[0][0]},${Field.ch[1][0]}`);
+
+// 26. Majority mode: denser side loses proportionally less; equal tie is symmetric
+setup({ gasSpeed: 0, mixMask: 1, reactMask: 1, reactRate: [50, 0, 0], reactMode: 1, sourceRate: 0 });
+Field.ch[0][0] = 200 * FP_ONE;
+Field.ch[1][0] = 50 * FP_ONE;
+Field.ch[0][1] = 120 * FP_ONE;
+Field.ch[1][1] = 120 * FP_ONE;
+run(1);
+const majR = 200 * FP_ONE - Field.ch[0][0], majG = 50 * FP_ONE - Field.ch[1][0];
+check('react_majority_law',
+	majG === 4 * majR && Field.ch[0][1] === Field.ch[1][1] && Field.pairNet[0] === majG - majR,
+	`lossR=${majR / FP_ONE} lossG=${majG / FP_ONE} tie=${Field.ch[0][1] / FP_ONE}`);
+
+// 27. Convert mode: exact total-mass conservation, respects cap & budget, flips minority to majority
+setup({ gasSpeed: 65, mixMask: 7, mixRate: [70, 70, 70], reactMask: 7, reactRate: [25, 25, 25], reactMode: 2, sourceRate: 0 });
+Source.seed(64, 64, 0);
+Source.seed(50, 64, 1);
+Source.seed(78, 64, 2);
+const convSum0 = massOf(0) + massOf(1) + massOf(2);
+run(400);
+const convSum1 = massOf(0) + massOf(1) + massOf(2);
+check('react_convert_conserves_mass', convSum0 === convSum1 && Field.pairBurn[0] > 0,
+	`sum=${convSum0}->${convSum1} burnRG=${Math.round(Field.pairBurn[0] / FP_ONE)}`);
+
+setup({ gasSpeed: 0, mixMask: 1, reactMask: 1, reactRate: [100, 0, 0], reactMode: 2, capBase: 180, capTerritory: 0, sourceRate: 0 });
+Field.ch[0][0] = 150 * FP_ONE;
+Field.ch[1][0] = 100 * FP_ONE;
+run(5);
+check('react_convert_respects_cap',
+	Field.ch[0][0] === 180 * FP_ONE && Field.ch[1][0] === 70 * FP_ONE,
+	`R=${Field.ch[0][0] / FP_ONE} G=${Field.ch[1][0] / FP_ONE}`);
+
+// 28. Absorb mode: consumes only the prey side, flips on reactDir, cyclic 3-way tie stays symmetric
+setup({ gasSpeed: 0, mixMask: 1, reactMask: 1, reactRate: [50, 0, 0], reactMode: 3, reactDir: [0, 1, 0], sourceRate: 0 });
+Field.ch[0][0] = 200 * FP_ONE;
+Field.ch[1][0] = 100 * FP_ONE;
+run(1);
+const abs0Ok = Field.ch[0][0] === 200 * FP_ONE && Field.ch[1][0] === 75 * FP_ONE && Field.pairNet[0] === 25 * FP_ONE;
+Settings.reactDir[0] = 1;
+run(1);
+const abs1Ok = Field.ch[0][0] < 200 * FP_ONE && Field.ch[1][0] === 75 * FP_ONE && Field.pairNet[0] < 25 * FP_ONE;
+check('react_absorb_directional', abs0Ok && abs1Ok,
+	`R=${(Field.ch[0][0] / FP_ONE).toFixed(2)} G=${Field.ch[1][0] / FP_ONE}`);
+
+setup({ gasSpeed: 0, mixMask: 7, reactMask: 7, reactRate: [50, 50, 50], reactMode: 3, reactDir: [0, 1, 0], sourceRate: 0 });
+Field.ch[0][0] = 200 * FP_ONE;
+Field.ch[1][0] = 200 * FP_ONE;
+Field.ch[2][0] = 200 * FP_ONE;
+run(1);
+check('react_absorb_cyclic_symmetry',
+	Field.ch[0][0] === 150 * FP_ONE && Field.ch[1][0] === 150 * FP_ONE && Field.ch[2][0] === 150 * FP_ONE,
+	`rgb=${[0, 1, 2].map(c => Field.ch[c][0] / FP_ONE).join('/')}`);
+
+// 29. Pair overlap metric matches live cell counts
+setup({ gasSpeed: 0, sourceRate: 0 });
+Field.ch[0][0] = 10 * FP_ONE; Field.ch[1][0] = 10 * FP_ONE;
+Field.ch[0][1] = 10 * FP_ONE; Field.ch[1][1] = 10 * FP_ONE; Field.ch[2][1] = 10 * FP_ONE;
+Field.analyze();
+check('pair_cells_counted',
+	Field.pairCells[0] === 2 && Field.pairCells[1] === 1 && Field.pairCells[2] === 1,
+	`pairs=${Field.pairCells.join('/')}`);
+
+// 30. Shared player supply splits evenly (no scanline bias) and creates emergent concentration sweet spot
+setup({ gasSpeed: 0, sourceRate: 255, playerFlow: 100 });
+Source.paint(10, 10, 0, 1, 0);
+Source.paint(110, 110, 0, 1, 0);
+run(1);
+const sA = Field.ch[0][10 * W + 10], sB = Field.ch[0][110 * W + 110];
+check('player_flow_fair_split',
+	sA + sB === 100 * FP_ONE && Math.abs(sA - sB) <= 1,
+	`a=${sA / FP_ONE} b=${sB / FP_ONE}`);
+
+setup({ gasSpeed: 65, gasDamping: 15, depletion: 0.15, sourceRate: 255, playerFlow: 300 });
+Source.paint(32, 44, 0, 1, 0);
+Source.paint(32, 64, 0, 1, 0);
+Source.paint(32, 84, 0, 1, 0);
+for (let gx = 0; gx < 5; gx++) {
+	for (let gy = 0; gy < 8; gy++) Source.paint(76 + gx * 10, 16 + gy * 13, 1, 1, 0);
+}
+run(600);
+check('player_flow_punishes_overspread',
+	Field.owned[0] > Field.owned[1] * 2,
+	`focused3=${Field.owned[0]} spammed40=${Field.owned[1]}`);
 
 console.log(`failures=${failures}`);
 process.exit(failures ? 1 : 0);

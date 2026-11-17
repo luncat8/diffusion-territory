@@ -59,13 +59,14 @@ getObj().data().action()
 
 - keep this map updated when ownership changes:
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
-	settings.js — owns rule values. edit for defaults.
-	field.js — owns planar Q12.12 cell grid, analysis, per-cell & total-mass caps. edit for storage, cap formula.
-	source.js — owns source cells and injection. edit for paint/seed/inject rules.
-	gas.js — owns staggered gas dynamics, per-pair transport, pair reaction, depletion. edit for gas physics.
+	settings.js — owns rule values and reaction mode list. edit for defaults.
+	field.js — owns planar Q12.12 grid, pair tables/metrics, analysis, and caps. edit for storage, cap formula.
+	source.js — owns source cells and shared-supply injection. edit for paint/seed/apportionment rules.
+	gas.js — owns staggered gas dynamics, per-pair transport, depletion. edit for gas physics.
+	react.js — owns per-pair reaction modes (mutual/majority/convert/absorb) and pair scoring. edit for reaction laws.
 	tick.js — owns step order. edit for phase order.
-	view.js — owns canvas, cursor readout, source marks, stats. edit for color/UI of the map.
-	controls.js — owns panel widgets and pair labels. edit for sliders, pair checkboxes, and labels.
+	view.js — owns canvas, cursor readout, source marks, player & pair stats. edit for color/UI of the map.
+	controls.js — owns panel widgets, pair toggles, reaction mode/dir controls. edit for sliders and buttons.
 	loop.js — owns pacing and stats cadence. edit for frame loop.
 	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
 	prototype/ — archived diffusion + Brownian + multigrid V-cycle prototype.
@@ -138,10 +139,10 @@ getObj().data().action()
 
 ## current workstream
 
-plans 0.2.0, 0.2.1 (archive/). constraints:
+plans 0.2.0–0.2.3 (archive/), gameplay draft 0.3.0-draft.md. constraints:
 	planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
 	after sim change: checks.js; after UI/boot change: dom-smoke.js.
-latest: per-pair mix and reaction permissions with per-pair rates (`mixMask`/`mixRate`, `reactMask`/`reactRate`, pairs RG/RB/GB + all) landed in 0.2.2.
+latest: reaction modes (`mutual`/`majority`/`convert`/`absorb` + `reactDir`), shared `playerFlow` supply, pair scoring in `#stats`, and `react.js` split landed in 0.2.3.
 
 ## housekeeping
 

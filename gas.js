@@ -1,5 +1,5 @@
-// owns: staggered-grid compressible gas dynamics, per-pair mix/reaction rules, and depletion
-// edit for: wave speed/damping mapping, pair transport, reaction, or sinks
+// owns: staggered-grid compressible gas dynamics, per-pair transport, and depletion
+// edit for: wave speed/damping mapping, unmixable VOF routing, pair permeability, or sinks
 
 const Gas = {
 	w: 0,
@@ -11,7 +11,6 @@ const Gas = {
 	lastMode: -1,
 	allow: [7, 7, 7],
 	pq: [1, 1, 1, 1, 1, 1, 1, 1, 1],
-	rq: [0, 0, 0],
 	bx: null,
 	by: null,
 	bax: null,
@@ -81,22 +80,25 @@ const Gas = {
 		this.k = Math.min(kMax, (Math.min(100, s.gasSpeed) / 100) * 0.34);
 	},
 
-	// off pairs stay unmixable (wall + drag); mixing is on when any pair is permitted, a permitted
-	// pair with rate 0 is still on so the wall stays physical instead of turning into a vacuum
-	rules(s) {
-		const q = this.pq, a = this.allow;
+	liveMask(s) {
 		const mm = s.mixMask & 7, rr = s.mixRate;
-		const on0 = mm & 1, on1 = mm & 2, on2 = mm & 4;
-		const r0 = on0 ? rr[0] / 100 : 0;
-		const r1 = on1 ? rr[1] / 100 : 0;
-		const r2 = on2 ? rr[2] / 100 : 0;
-		q[1] = q[3] = r0;
-		q[2] = q[6] = r1;
-		q[5] = q[7] = r2;
+		return ((mm & 1) && rr[0] > 0 ? 1 : 0) |
+			((mm & 2) && rr[1] > 0 ? 2 : 0) |
+			((mm & 4) && rr[2] > 0 ? 4 : 0);
+	},
+
+	// zero-rate pairs close allow so low-density receivers never leak across a checked 0% wall
+	rules(s) {
+		const q = this.pq, a = this.allow, rr = s.mixRate;
+		const live = this.liveMask(s);
+		const on0 = live & 1, on1 = live & 2, on2 = live & 4;
+		q[1] = q[3] = on0 ? rr[0] / 100 : 0;
+		q[2] = q[6] = on1 ? rr[1] / 100 : 0;
+		q[5] = q[7] = on2 ? rr[2] / 100 : 0;
 		a[0] = 1 | (on0 ? 2 : 0) | (on1 ? 4 : 0);
 		a[1] = 2 | (on0 ? 1 : 0) | (on2 ? 4 : 0);
 		a[2] = 4 | (on1 ? 1 : 0) | (on2 ? 2 : 0);
-		return mm;
+		return live;
 	},
 
 	step(s) {
@@ -297,9 +299,7 @@ const Gas = {
 		this.sharpen(cap);
 	},
 
-	// per-pair conductivity enters the acceleration through q = mixRate / 100 of the receiving species:
-	// kf = k * q, dampf = damp + (0.75 - damp) * (1 - q). Directions a species may not enter are a hard
-	// valve (both blocked: no flux at all), so a disabled pair is a wall and never a vacuum
+	// forbidden directions act as a hard valve; allowed foreign gas applies symmetric Maxwell-Stefan drag
 	accelMixFace(a, b, j, rc, ptot, outSum, damp, k, c) {
 		const ra = rc[a], rb = rc[b];
 		let fl = j[a];
@@ -388,43 +388,6 @@ const Gas = {
 					if (hasY && jy[i]) this.sendMix(i, i + w, jy, ay, rc, cp, outScale);
 				}
 			}
-		}
-	},
-
-	// every present pair consumes min(a, b) * share of each of its two channels, so each channel
-	// loses only to a permitted partner and both partners lose the same amount; in a triple cell
-	// the pair demands are scaled down together when they would overdraw a channel
-	react(s) {
-		const rm = s.reactMask & 7;
-		if (!rm) return;
-		const rr = s.reactRate, rq = this.rq;
-		const q0 = rm & 1 ? Math.min(100, rr[0]) / 100 : 0;
-		const q1 = rm & 2 ? Math.min(100, rr[1]) / 100 : 0;
-		const q2 = rm & 4 ? Math.min(100, rr[2]) / 100 : 0;
-		rq[0] = q0 * q0;
-		rq[1] = q1 * q1;
-		rq[2] = q2 * q2;
-		if (!(rq[0] || rq[1] || rq[2])) return;
-		const c0 = Field.ch[0], c1 = Field.ch[1], c2 = Field.ch[2];
-		for (let i = 0; i < Field.n; i++) {
-			const a = c0[i], b = c1[i], c = c2[i];
-			const present = (a > 0 ? 1 : 0) + (b > 0 ? 1 : 0) + (c > 0 ? 1 : 0);
-			if (present < 2) continue;
-			let mRG = 0, mRB = 0, mGB = 0;
-			if (a > 0 && b > 0 && rq[0]) mRG = (a < b ? a : b) * rq[0];
-			if (a > 0 && c > 0 && rq[1]) mRB = (a < c ? a : c) * rq[1];
-			if (b > 0 && c > 0 && rq[2]) mGB = (b < c ? b : c) * rq[2];
-			if (!(mRG || mRB || mGB)) continue;
-			const dA = mRG + mRB, dB = mRG + mGB, dC = mRB + mGB;
-			let sc = 1;
-			if (dA > a) sc = a / dA;
-			if (b > 0 && dB > b) { const t = b / dB; if (t < sc) sc = t; }
-			if (c > 0 && dC > c) { const t = c / dC; if (t < sc) sc = t; }
-			if (sc < 1) { mRG *= sc; mRB *= sc; mGB *= sc; }
-			const tRG = mRG | 0, tRB = mRB | 0, tGB = mGB | 0;
-			c0[i] = a - tRG - tRB;
-			c1[i] = b - tRG - tGB;
-			c2[i] = c - tRB - tGB;
 		}
 	},
 

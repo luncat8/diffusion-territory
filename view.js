@@ -1,5 +1,5 @@
-// owns: canvas rendering, source painting, cursor readout, source marks
-// edit for: color mapping, tooltip fields, canvas interactions
+// owns: canvas rendering, source painting, cursor readout, source marks, and stats
+// edit for: color mapping, tooltip fields, pair score formatting, canvas interactions
 
 const View = {
 	canvas: null,
@@ -149,24 +149,49 @@ const View = {
 		this.ctx.strokeRect(x * s + 0.5, y * s + 0.5, span - 1, span - 1);
 	},
 
-	pairsText(mask, rates) {
+	short(n) {
+		return n >= 10000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+	},
+
+	dirLabel(p, dir) {
+		const a = View.names[PAIR_A[p]], b = View.names[PAIR_B[p]];
+		return dir ? b + '>' + a : a + '>' + b;
+	},
+
+	pairsText(mask, rates, directed) {
 		let s = '';
 		for (let p = 0; p < 3; p++) {
-			if ((mask & (1 << p)) && rates[p] > 0) s += (s ? '/' : '') + View.names[p];
+			if (!((mask & (1 << p)) && rates[p] > 0)) continue;
+			const tag = directed ? View.dirLabel(p, Settings.reactDir[p]) : PAIR_NAMES[p];
+			s += (s ? '/' : '') + tag;
 		}
 		return s || 'none';
 	},
 
+	pairStat(p) {
+		const cells = Field.pairCells[p];
+		const burn = Math.round(Field.pairBurn[p] / FP_ONE);
+		const net = Math.round(Field.pairNet[p] / FP_ONE);
+		const head = PAIR_NAMES[p] + ' ' + cells;
+		if (!burn) return head;
+		if (!net) return head + ' -' + View.short(burn);
+		const win = net > 0 ? View.names[PAIR_A[p]] : View.names[PAIR_B[p]];
+		return head + ' ' + win + '+' + View.short(Math.abs(net));
+	},
+
 	stats(node) {
-		let s = 'fps ' + Loop.fps + '  (' + View.pairsText(Settings.mixMask, Settings.mixRate) +
-			' · react ' + View.pairsText(Settings.reactMask, Settings.reactRate) + ')\n';
+		const live = Gas.liveMask(Settings);
+		const rText = View.pairsText(Settings.reactMask & live, Settings.reactRate, Settings.reactMode === 3);
+		const rMode = rText === 'none' ? '' : ' (' + REACT_MODES[Settings.reactMode] + ')';
+		let s = 'fps ' + Loop.fps + '  mix ' + View.pairsText(live, Settings.mixRate, false) +
+			' · react ' + rText + rMode + '\n';
 		for (let p = 0; p < 3; p++) {
 			const mass = Math.round(Field.total[p] / FP_ONE);
 			const lim = Settings.maxMass > 0 ? '/' + (Settings.maxMass * 1000) : '';
-			s += View.names[p] + ' cells ' + Field.owned[p] +
-				'  cap ' + (Field.cap[p] ? (Field.cap[p] >> FP) : 'off') +
-				'  mass ' + mass + lim + '\n';
+			s += View.names[p] + ' cells ' + Field.owned[p] + '  src ' + Field.srcCount[p] +
+				'  cap ' + View.capText(p) + '  mass ' + mass + lim + '\n';
 		}
+		s += 'pairs  ' + View.pairStat(0) + ' · ' + View.pairStat(1) + ' · ' + View.pairStat(2) + '\n';
 		s += 'frame ' + Loop.frame;
 		node.textContent = s;
 	},

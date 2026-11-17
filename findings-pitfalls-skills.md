@@ -146,9 +146,10 @@ then leaks at ~1/4 of an open pair — visible as slow but complete penetration.
   across the "wall" (measured: whole regions swapped owners). The blocked side must keep the damped
   push term; only the mass flux is zero.
 
-Also: a pair that is permitted with `rate = 0` must be treated as wall, not as unmixable. Switching
-the solver mode on `rate > 0` made the sim flip between bulk and per-species transport per frame, and
-the per-species path let blocked species drift in through `outScale` redistribution.
+Also: `Gas.liveMask` must require `(mixMask & (1 << p)) && mixRate[p] > 0`, and `React.run` must
+intersect `reactMask` with `liveMask`. Leaving `allow` open at `rate = 0` leaked `319 715` display
+units across a 200-vs-10 front because `f = other / (32 * FP_ONE) < 1` leaves `1 - g > 0`; running
+reaction on an unmixable pair eroded `132 000` display units along the 1-cell VOF interface seam.
 
 ## a per-pair reaction needs a per-pair draw, not sorted channels
 
@@ -174,6 +175,27 @@ Two traps when a panel grows to grouped widgets:
 - A range handler of the form `input.addEventListener('input', () => edit(def, p, input, val))` is
   safe only if `input` is the parameter of the loop that created it. Reading `+input.value` through a
   stale `def` (`def` replaced by a node, `Settings[def.key]` then `undefined`) throws inside the
-  listener, which jsdom reports as silence rather than a failing check. Assert the setting changed
-  after dispatching the event, not just that the event listener was attached.
+listener, which jsdom reports as silence rather than a failing check. Assert the setting changed
+after dispatching the event, not just that the event listener was attached.
+
+## reaction sub-quantum floor and gain-separate conversion scaling
+
+Pure truncation `(min(a, b) * share) | 0` stalls whenever `min(a, b) < 1 / share` (`0.1` display
+units at `rate = 5`, `2.44` display units at `rate = 1`), leaving permanent residue. Clamp positive
+pair demand to `>= 1` quantum before channel-overdraw scaling so slow reactions clear to exact zero.
+
+For mass-conserving conversion (`u += d, v -= d`), scale each channel's gains against `cap[c] - x[c]`
+and `budget[c] - total[c]` independently of losses (`d` bounded by `min(sLoss[loser], sGain[winner])`).
+Scaling on net `gain - loss` can overshoot `cap` by 1 quantum after independent integer truncation,
+and a single cell-wide scale factor stalls an unrelated pair `GB` whenever `R` sits at its cap.
+
+## shared player supply creates a non-monotonic source-count sweet spot
+
+Apportioning a player's per-frame flow limit `playerFlow` across active sources via running rational
+division (`add = w * (room / want) | 0`, last source gets exact `room`) avoids scanline starvation
+and wastes zero quanta without extra arrays. Combined with the `255` source ceiling and per-cell
+depletion, source count `K` self-limits along an inverted-U curve (`playerFlow = 600, dep = 0.1`):
+`K = 1` claims `1521` cells (ceiling-choked), `K = 2` peaks at `3475` (`peak = 255`), `K = 8` drops
+to `2845` (`peak = 75`), `K = 64` collapses to `576` (`peak = 9`).
+
 

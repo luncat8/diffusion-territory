@@ -43,12 +43,14 @@ function check(name, ok, value) {
 	console.log(`check=${name} ok=${ok ? 1 : 0} value=${value}`);
 }
 
-check('boot_scripts', scripts.length === 9, scripts.join(','));
+check('boot_scripts', scripts.length === 10, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
 const ranges = doc.querySelectorAll('#rows input[type=range]');
-check('sliders', ranges.length === 15, `rows=${ranges.length}`);
+check('sliders', ranges.length === 16, `rows=${ranges.length}`);
 check('mix_checkboxes', ['mix-all', 'mix-rg-on', 'mix-rb-on', 'mix-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
 check('react_checkboxes', ['react-all', 'react-rg-on', 'react-rb-on', 'react-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
+check('react_mode_buttons', ['mode-mutual', 'mode-majority', 'mode-convert', 'mode-absorb'].every(id => !!doc.getElementById(id)), 'four modes');
+check('react_dir_buttons', ['dir-rg', 'dir-rb', 'dir-gb'].every(id => doc.getElementById(id) && doc.getElementById(id).hidden), 'hidden until absorb');
 check('pair_sliders', ['mix-rg', 'mix-rb', 'mix-gb', 'react-rg', 'react-rb', 'react-gb'].every(id => !!doc.getElementById(id)), 'six pair sliders');
 check('player_buttons', doc.querySelectorAll('#players button').length === 3, 'R G B');
 check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length === 15, 'seed sources');
@@ -109,6 +111,27 @@ reactSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
 doc.getElementById('react-rg-on').checked = false;
 doc.getElementById('react-rg-on').dispatchEvent(new window.Event('change', { bubbles: true }));
 check('react_pair_unchecked', settings.reactMask === 6 && doc.getElementById('react-rg-on').checked === false, `reactMask=${settings.reactMask}`);
+
+doc.getElementById('mode-absorb').click();
+const dirRb = doc.getElementById('dir-rb');
+check('absorb_shows_dirs', settings.reactMode === 3 && !dirRb.hidden && dirRb.textContent === 'B>R', dirRb.textContent);
+dirRb.click();
+check('dir_flips', settings.reactDir[1] === 0 && dirRb.textContent === 'R>B' &&
+	doc.getElementById('stats').textContent.includes('R>B'), dirRb.textContent);
+doc.getElementById('mode-convert').click();
+check('mode_switches', settings.reactMode === 2 && dirRb.hidden &&
+	doc.getElementById('stats').textContent.includes('(convert)'), 'convert');
+doc.getElementById('mode-mutual').click();
+
+const flowSlider = doc.getElementById('ctrl-playerFlow');
+flowSlider.value = '400';
+flowSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
+check('player_flow_binds', settings.playerFlow === 400, `playerFlow=${settings.playerFlow}`);
+flowSlider.value = '0';
+flowSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
+
+check('stats_pair_names', doc.getElementById('stats').textContent.includes('mix RB') &&
+	doc.getElementById('stats').textContent.includes('pairs  RG'), 'mix RB + pairs line');
 
 doc.getElementById('pause').click();
 check('pause_toggles', scope('Settings').paused === 1, doc.getElementById('pause').textContent);

@@ -128,6 +128,39 @@ body {
 	margin-right: 2px;
 }
 
+.row.modes {
+	flex-direction: row;
+	gap: 4px;
+}
+
+.mode, .dir {
+	background: #20202a;
+	color: var(--dim);
+	border: 1px solid var(--line);
+	cursor: pointer;
+	font: inherit;
+	font-size: 11px;
+}
+
+.mode {
+	flex: 1;
+	padding: 2px 0;
+}
+
+.mode.on {
+	background: #2e2e3e;
+	color: var(--text);
+	border-color: #6a6a88;
+}
+
+.dir {
+	color: var(--text);
+	padding: 0 4px;
+	line-height: 1.2;
+}
+
+.dir:hover, .mode:hover { background: #2a2a36; }
+
 input[type=checkbox] {
 	accent-color: #8a8aa8;
 	margin: 0;

@@ -12,7 +12,8 @@ function benchCase(name, over, frames) {
 	Gas.init(W, H);
 	Object.assign(Settings, {
 		gasSpeed: 50, gasDamping: 20, depletion: 0, mixMask: 0, mixRate: [50, 50, 50],
-		reactMask: 0, reactRate: [5, 5, 5], maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
+		reactMask: 0, reactRate: [5, 5, 5], reactMode: 0, reactDir: [0, 1, 0],
+		playerFlow: 0, maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
 	}, over);
 	Source.seed(64, 64, 0);
 	Source.seed(20, 100, 1);
@@ -36,6 +37,9 @@ function benchCase(name, over, frames) {
 benchCase('unmix_default', { mixMask: 0, depletion: 0 }, 1500);
 benchCase('unmix_dep03', { mixMask: 0, depletion: 0.3 }, 800);
 benchCase('mix_all_react5', { mixMask: 7, mixRate: [50, 50, 50], reactMask: 7, reactRate: [5, 5, 5] }, 1200);
+benchCase('mix_majority12', { mixMask: 7, mixRate: [60, 60, 60], reactMask: 7, reactRate: [12, 12, 12], reactMode: 1 }, 1200);
+benchCase('mix_convert12', { mixMask: 7, mixRate: [60, 60, 60], reactMask: 7, reactRate: [12, 12, 12], reactMode: 2 }, 1200);
+benchCase('mix_absorb12', { mixMask: 7, mixRate: [60, 60, 60], reactMask: 7, reactRate: [12, 12, 12], reactMode: 3 }, 1200);
 benchCase('mix_rg_only', { mixMask: 1, mixRate: [50, 50, 50] }, 1200);
 benchCase('mix100_noreact', { mixMask: 7, mixRate: [100, 100, 100] }, 1200);
 benchCase('unmix_fast', { gasSpeed: 90, gasDamping: 10 }, 1000);

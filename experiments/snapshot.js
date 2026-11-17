@@ -85,7 +85,8 @@ function scenario(name, frames, over, seeds) {
 	Gas.init(128, 128);
 	Object.assign(Settings, {
 		gasSpeed: 65, gasDamping: 15, depletion: 0, mixMask: 0, mixRate: [50, 50, 50],
-		reactMask: 0, reactRate: [5, 5, 5], maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
+		reactMask: 0, reactRate: [5, 5, 5], reactMode: 0, reactDir: [0, 1, 0],
+		playerFlow: 0, maxMass: 0, sourceRate: 255, capBase: 0, capTerritory: 100, substeps: 1,
 	}, over);
 	for (const [x, y, p] of seeds) Source.seed(x, y, p);
 	for (let f = 0; f < frames; f++) Tick.run(Settings);
@@ -103,4 +104,7 @@ scenario('unmix_f2400', 2400, {}, seeds);
 scenario('depletion03', 800, { depletion: 0.3 }, seeds);
 scenario('pairs_rg_only', 1800, { mixMask: 1, mixRate: [100, 100, 100] }, seeds);
 scenario('pairs_all_react5', 1800, { mixMask: 7, reactMask: 7, reactRate: [5, 5, 5] }, seeds);
+scenario('react_majority15', 1800, { mixMask: 7, mixRate: [65, 65, 65], reactMask: 7, reactRate: [15, 15, 15], reactMode: 1 }, seeds);
+scenario('react_convert20', 1800, { mixMask: 7, mixRate: [65, 65, 65], reactMask: 7, reactRate: [20, 20, 20], reactMode: 2 }, seeds);
+scenario('react_absorb_rps15', 1800, { mixMask: 7, mixRate: [65, 65, 65], reactMask: 7, reactRate: [15, 15, 15], reactMode: 3 }, seeds);
 scenario('mix100_noreact', 1800, { mixMask: 7, mixRate: [100, 100, 100] }, seeds);

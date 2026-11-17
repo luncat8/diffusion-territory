@@ -1,5 +1,5 @@
-// owns: the Q12.12 cell grid, ownership masks, territory caps, and cell reads
-// edit for: grid size, fixed-point precision, ownership tie rule, or cap curve
+// owns: the Q12.12 cell grid, ownership masks, pair metrics, territory caps, and cell reads
+// edit for: grid size, fixed-point precision, ownership tie rule, pair tables, or cap curve
 
 const FP = 12;
 const FP_ONE = 1 << FP;
@@ -7,6 +7,9 @@ const FP_HALF = FP_ONE >> 1;
 const NO_COLOR = 3;
 const REF_OWNED = 16;
 const CAP_DEF = 255;
+const PAIR_A = [0, 0, 1];
+const PAIR_B = [1, 2, 2];
+const PAIR_NAMES = ['RG', 'RB', 'GB'];
 
 const Field = {
 	w: 0,
@@ -17,9 +20,13 @@ const Field = {
 	dom: null,
 	src: null,
 	owned: [0, 0, 0],
+	srcCount: [0, 0, 0],
 	total: [0, 0, 0],
 	cap: [0, 0, 0],
 	budget: [0, 0, 0],
+	pairCells: [0, 0, 0],
+	pairBurn: [0, 0, 0],
+	pairNet: [0, 0, 0],
 
 	init(w, h) {
 		this.w = w;
@@ -42,24 +49,38 @@ const Field = {
 		this.src.fill(0);
 		for (let p = 0; p < 3; p++) {
 			this.owned[p] = 0;
+			this.srcCount[p] = 0;
 			this.total[p] = 0;
 			this.cap[p] = 0;
 			this.budget[p] = Infinity;
+			this.pairCells[p] = 0;
+			this.pairBurn[p] = 0;
+			this.pairNet[p] = 0;
 		}
 	},
 
 	analyze() {
-		const c0 = this.ch[0];
-		const c1 = this.ch[1];
-		const c2 = this.ch[2];
-		const dom = this.dom;
+		const c0 = this.ch[0], c1 = this.ch[1], c2 = this.ch[2];
+		const dom = this.dom, src = this.src;
 		let o0 = 0, o1 = 0, o2 = 0;
+		let s0 = 0, s1 = 0, s2 = 0;
+		let p0 = 0, p1 = 0, p2 = 0;
 		let t0 = 0, t1 = 0, t2 = 0;
 		for (let i = 0; i < this.n; i++) {
 			const r = c0[i], g = c1[i], b = c2[i];
 			t0 += r;
 			t1 += g;
 			t2 += b;
+			const h0 = r >= FP_ONE, h1 = g >= FP_ONE, h2 = b >= FP_ONE;
+			if (h0 && h1) p0++;
+			if (h0 && h2) p1++;
+			if (h1 && h2) p2++;
+			const sm = src[i];
+			if (sm) {
+				if (sm & 1) s0++;
+				if (sm & 2) s1++;
+				if (sm & 4) s2++;
+			}
 			const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
 			let d = NO_COLOR;
 			if (max >= FP_ONE) {
@@ -72,6 +93,8 @@ const Field = {
 			else if (d === 2) o2++;
 		}
 		this.owned[0] = o0; this.owned[1] = o1; this.owned[2] = o2;
+		this.srcCount[0] = s0; this.srcCount[1] = s1; this.srcCount[2] = s2;
+		this.pairCells[0] = p0; this.pairCells[1] = p1; this.pairCells[2] = p2;
 		this.total[0] = t0; this.total[1] = t1; this.total[2] = t2;
 	},
 
@@ -115,6 +138,6 @@ const Field = {
 
 if (typeof module !== 'undefined') {
 	module.exports = {
-		Field, FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF,
+		Field, FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF, PAIR_A, PAIR_B, PAIR_NAMES,
 	};
 }
