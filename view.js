@@ -1,4 +1,4 @@
-// owns: canvas rendering, pigment painting, cursor readout, production marks, and stats
+// owns: canvas rendering, pigment painting, cursor readout, production marks, objective ring, and stats
 // edit for: color mapping, tooltip fields, pair score formatting, canvas interactions
 
 const View = {
@@ -13,6 +13,7 @@ const View = {
 	cell: new Int32Array(8),
 	markers: ['', '#f66', '#6f6', '#fc6', '#66f', '#f6f', '#6ff', '#fff'],
 	names: ['R', 'G', 'B'],
+	zoneColors: ['#f66', '#6f6', '#66f'],
 	text: '',
 
 	init(canvas, tip) {
@@ -128,7 +129,32 @@ const View = {
 		this.ctx.imageSmoothingEnabled = false;
 		this.ctx.drawImage(this.img, 0, 0, this.canvas.width, this.canvas.height);
 		if (Settings.showSources) this.marks();
+		this.zone();
 		this.cursor();
+	},
+
+	// ring doubles as the hold gauge, so progress is read on the map instead of only in the panel
+	zone() {
+		const o = Objective;
+		if (!o.area) return;
+		const s = this.scale;
+		const cx = (o.cx + 0.5) * s;
+		const cy = (o.cy + 0.5) * s;
+		const rr = (o.r + 0.5) * s;
+		const ctx = this.ctx;
+		ctx.beginPath();
+		ctx.arc(cx, cy, rr, 0, Math.PI * 2);
+		ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+		ctx.lineWidth = 1;
+		ctx.stroke();
+		const ratio = o.holdRatio();
+		if (!ratio) return;
+		ctx.beginPath();
+		ctx.arc(cx, cy, rr, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio);
+		ctx.strokeStyle = this.zoneColors[o.player];
+		ctx.lineWidth = 3;
+		ctx.stroke();
+		ctx.lineWidth = 1;
 	},
 
 	marks() {

@@ -23,6 +23,12 @@ function stubCanvas(window) {
 		drawImage: () => {},
 		fillRect: () => {},
 		strokeRect: () => {},
+		beginPath: () => {},
+		closePath: () => {},
+		arc: () => {},
+		stroke: () => {},
+		save: () => {},
+		restore: () => {},
 	};
 	window.HTMLCanvasElement.prototype.getContext = () => ctx;
 	window.HTMLCanvasElement.prototype.getBoundingClientRect = () => ({
@@ -43,7 +49,7 @@ function check(name, ok, value) {
 	console.log(`check=${name} ok=${ok ? 1 : 0} value=${value}`);
 }
 
-check('boot_scripts', scripts.length === 12, scripts.join(','));
+check('boot_scripts', scripts.length === 14, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
 check('scene_presets', doc.querySelectorAll('#scene-select option').length === 6 &&
 	doc.getElementById('scene-select').value === '0', `scene=${doc.getElementById('scene-select').value}`);
@@ -60,6 +66,45 @@ check('sources_seeded', Array.from(scope('Field').src).filter(Boolean).length ==
 scope('Tick').run(scope('Settings'));
 scope('View').draw();
 check('step_runs', scope('Field').total[0] > 0, `mass_r=${Math.round(scope('Field').total[0] / scope('FP_ONE'))}`);
+
+const hud = doc.getElementById('hud');
+check('hud_visible', !hud.hidden && !!hud.querySelector('.hud-head'), 'hud built');
+check('objective_zone', scope('Objective').area > 1700 && scope('Objective').player === 0,
+	`area=${scope('Objective').area} player=${scope('Objective').player}`);
+check('hud_spot_controls', ['spot-sourceRate', 'spot-gasSpeed', 'spot-gasDamping', 'spot-brush', 'spot-mix-0', 'spot-mix-1',
+	'spot-react-0', 'spot-react-1', 'spot-mode'].every(id => !!doc.getElementById(id)), 'eight quick controls');
+const spotRate = doc.getElementById('spot-sourceRate');
+spotRate.value = '12';
+spotRate.dispatchEvent(new window.Event('input', { bubbles: true }));
+check('spot_slider_binds', scope('Settings').sourceRate === 12 && doc.getElementById('ctrl-sourceRate').value === '12',
+	`sourceRate=${scope('Settings').sourceRate}`);
+spotRate.value = '5';
+spotRate.dispatchEvent(new window.Event('input', { bubbles: true }));
+
+doc.getElementById('hud-pick-1').click();
+check('hud_color_switch', scope('Settings').paint === 1 && scope('Objective').player === 1,
+	`paint=${scope('Settings').paint} player=${scope('Objective').player}`);
+doc.getElementById('hud-pick-0').click();
+
+const targetSelect = doc.getElementById('hud-target');
+targetSelect.value = '30';
+targetSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
+check('hud_target_binds', scope('Settings').holdTarget === 30 && scope('Objective').target === 1800 &&
+	new URL(window.location.href).searchParams.get('dt.holdTarget') === '30',
+	`target=${scope('Objective').target} url=${window.location.search}`);
+targetSelect.value = '20';
+targetSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+scope('Source').paint(64, 64, 0, true, 24);
+scope('Tick').run(scope('Settings'));
+scope('HUD').refresh();
+check('hud_hold_progress', scope('Objective').control === 1 && doc.getElementById('hud-status').textContent === 'HOLDING' &&
+	parseFloat(doc.getElementById('hud-fill').style.width) > 0,
+	`status=${doc.getElementById('hud-status').textContent} width=${doc.getElementById('hud-fill').style.width}`);
+
+hud.querySelector('.hud-fold').click();
+check('hud_folds', hud.classList.contains('folded'), 'folded');
+hud.querySelector('.hud-fold').click();
 
 function mouse(type, x, y, extra) {
 	canvas.dispatchEvent(new window.MouseEvent(type, Object.assign({ clientX: x, clientY: y, bubbles: true }, extra)));

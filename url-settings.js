@@ -14,6 +14,7 @@ const UrlSettings = {
 	fields() {
 		const fields = [{ key: 'scene', min: 0, max: SCENES.length - 1, step: 1 },
 			{ key: 'paused', min: 0, max: 1, step: 1 }, { key: 'paint', min: 0, max: 2, step: 1 },
+			{ key: 'holdTarget', min: 5, max: 120, step: 5 },
 			{ key: 'mixMask', min: 0, max: 7, step: 1 }, { key: 'reactMask', min: 0, max: 7, step: 1 },
 			{ key: 'reactMode', min: 0, max: REACT_MODES.length - 1, step: 1 }];
 		for (let i = 0; i < 3; i++) fields.push({ key: 'reactDir', index: i, min: 0, max: 1, step: 1 });

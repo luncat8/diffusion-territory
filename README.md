@@ -6,4 +6,4 @@ Open `index.html` directly (`file://`) or serve the root folder:
 
 	python3 -m http.server 8000
 
-Checks: `node experiments/checks.js`, `node experiments/dom-smoke.js` (`jsdom`), `node experiments/gas-bench.js`.
+Checks: `npm run checks` (simulation and objective), `npm run smoke` (`jsdom`), `npm run bench`, `npm run objective-bench` (scene measurement, minutes).

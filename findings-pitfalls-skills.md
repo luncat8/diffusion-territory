@@ -209,3 +209,17 @@ so an earlier species transfer does not change another species' signal within th
 A 64-cell RG line after 300 ticks (2% mutual reaction, production 5, speed 20, damping 100) has
 green traces increasing toward the border: positions 0/8/16/24/31 = 0.011/0.301/4.536/28.206/106.208.
 R→G attraction 50 raises red at cell 32 from 106.208 to 186.577 without target searches.
+
+## an objective measures the opening seed unless every variant makes the same move
+
+Settings-only sweeps of the six scenes (12 s target, 10 s runs) put the tested player in control at frame 0 in 2 of 6 scenes and below 55 % in the other 4; mean control spread was 0.1 s for pressure and 0.0 s for mixing. The layout, not the rule under test, decided the outcome.
+
+Give every variant one identical opening claim instead: clear and paint a radius-8 disc at the ring centre before the run. The same sweep at 6 s then separates the choices: production 1.2 s mean control spread / 7.6 pp peak-share spread, pressure 0.1 s / 0.0 pp, mixing 0.0 s / 0.7 pp, reaction 0.5 s / 0.4 pp. Colour choice is the strongest lever (2.8 s / 31.4 pp) because every scene favours one seed.
+
+- A hold gate clamps the metric at zero below the threshold. Log peak share next to control time and mark an axis sensitive on either spread.
+- Deterministic runs make the opening move part of the experiment, so put it in the plan.
+- 128² `Tick` costs ~28 ms in node: 66 runs × 360 ticks is ~25 min. Two levels per axis is the practical limit.
+
+## duplicate widgets need one sync loop, not one copy per panel
+
+A compact focus panel reuses the panel's widget factory and reads the same `Settings`. Every edit resyncs all knobs, so the duplicate slider, the panel slider and the URL never disagree. Build duplicate rows from the definition table and resolve pair-dependent values (rival pair index, labels) at sync time; copying values at build time creates a second source of truth that drifts on the first colour switch.

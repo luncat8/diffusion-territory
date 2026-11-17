@@ -7,9 +7,11 @@ const Main = {
 	init() {
 		Field.init(128, 128);
 		Gas.init(Field.w, Field.h);
+		Objective.init(Field.w, Field.h);
 		View.init($('canv'), $('tip'));
 		UrlSettings.load();
 		Controls.build();
+		HUD.init($('hud'));
 		Main.wire();
 		Main.reset();
 		Loop.start();
@@ -32,6 +34,7 @@ const Main = {
 		Loop.frame++;
 		View.draw();
 		View.stats($('stats'));
+		HUD.refresh();
 	},
 
 	loadScene(index) {
@@ -49,9 +52,11 @@ const Main = {
 		Field.caps(Settings.capBase, Settings.capTerritory, Settings.maxMass);
 		Source.prepare(Settings);
 		Field.analyze();
+		Objective.reset(Settings);
 		View.draw();
 		View.stats($('stats'));
 		Controls.sync();
+		HUD.refresh();
 	},
 };
 

@@ -11,6 +11,7 @@ const CONTROL_MIN = 0.05 * CAP_DEF * FP_ONE;
 const PAIR_A = [0, 0, 1];
 const PAIR_B = [1, 2, 2];
 const PAIR_NAMES = ['RG', 'RB', 'GB'];
+const PAIR_INDEX = [[-1, 0, 1], [0, -1, 2], [1, 2, -1]];
 
 const Field = {
 	generation: 0,
@@ -141,6 +142,6 @@ const Field = {
 
 if (typeof module !== 'undefined') {
 	module.exports = {
-		Field, FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF, PAIR_A, PAIR_B, PAIR_NAMES,
+		Field, FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF, PAIR_A, PAIR_B, PAIR_NAMES, PAIR_INDEX,
 	};
 }

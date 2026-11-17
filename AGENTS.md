@@ -59,17 +59,19 @@ getObj().data().action()
 
 - keep this map updated when ownership changes:
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
-	settings.js — owns rule values and reaction mode list. edit for defaults.
+	settings.js — owns rule values, reaction mode list, and hold target default. edit for defaults.
+	objective.js — owns the capture-and-hold ring, hold timer, and attempt statistics. edit for zone shape, control threshold, decay, goal rules.
+	hud.js — owns the objective column: hold bar, zone shares, attempt history, focus host, hints. edit for objective readouts, hints, layout.
 	presets.js — owns reproducible visual test scenes and their simulation settings. edit for scene layouts and starting conditions.
 	field.js — owns planar Q12.12 grid, pair tables/metrics, analysis, and caps. edit for storage, cap formula.
 	source.js — owns pigment painting, local production eligibility and shared-supply growth. edit for paint/seed/production rules.
 	gas.js — owns staggered gas dynamics, per-pair transport, depletion. edit for gas physics.
 	react.js — owns per-pair reaction modes (mutual/majority/convert/absorb) and pair scoring. edit for reaction laws.
-	tick.js — owns step order. edit for phase order.
-	view.js — owns canvas, cursor readout, source marks, player & pair stats. edit for color/UI of the map.
-	controls.js — owns panel widgets, pair toggles, reaction mode/dir controls, and scene selection. edit for sliders and buttons.
+	tick.js — owns step order and objective sampling. edit for phase order.
+	view.js — owns canvas, cursor readout, source marks, objective ring, player & pair stats. edit for color/UI of the map.
+	controls.js — owns panel widgets, focus widgets, pair toggles, reaction mode/dir controls, and scene selection. edit for sliders and buttons.
 	url-settings.js — owns shareable URL persistence for GUI settings. edit for URL encoding and validation.
-	loop.js — owns pacing and stats cadence. edit for frame loop.
+	loop.js — owns pacing, stats cadence, and HUD cadence. edit for frame loop.
 	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
 	prototype/ — archived diffusion + Brownian + multigrid V-cycle prototype.
 - new code goes to its owner, never appended "because the file is already there". no owner exists -> new file + header + map entry.
@@ -124,14 +126,11 @@ getObj().data().action()
 - leaf file touched -> L1 max. shared/boot touched -> L2.
 - previous stage's validation stands until something it covers changes. no reruns to feel safe.
 - batch checks at checkpoints, never per file inside one move. full tests after every work = CPU defect.
-- manual pass list (what to verify by hand: look, sound, feel) lives in the plan.
-- one file per commit (bisectable).
+- manual pass list (look, sound, feel) lives in the plan; one file per commit (bisectable).
 
 ## workflow
 
-- start work with review of the previous task: it was done by another agent and you can find a better way or real issues.
-- same review polices compliance — comment budget, worklog format, placement. fix in place, one line in your own worklog. no test reruns: previous stage already validated it, rerun only what your fix itself touches.
-- review the next step plan. improve it only with a concrete reason, then implement.
+- review the previous task and the next step plan; fix compliance in place, improve the plan only with a concrete reason, rerun only what a fix touches.
 - record steps and validation in `archive/*-worklog.md` per `## worklogs`.
 - end the job with a next step suggestion.
 
@@ -141,10 +140,9 @@ getObj().data().action()
 
 ## current workstream
 
-plans 0.2.0–0.2.3 and 0.3.1 (archive/). constraints:
-	planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
+plans 0.2.0–0.2.3, 0.3.1 and 0.4.0 (archive/); constraints: planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
 	after sim change: checks.js; after UI/boot change: dom-smoke.js.
-latest: 0.3.1 local production, 5% control threshold, smooth fractional reactions, directional gradient response; `npm run checks` includes concentration regressions.
+latest: 0.4.0 capture-and-hold ring, objective column with focus controls and attempt statistics, objective checks and scene bench; 0.3.1 local production, 5% control threshold, smooth fractional reactions, directional gradient response; `npm run checks` includes concentration and objective regressions.
 
 ## housekeeping
 

@@ -1,5 +1,5 @@
 // owns: panel widgets and their binding to Settings
-// edit for: slider list, labels, pair groups, reaction modes, paint players, buttons
+// edit for: slider list, labels, pair groups, reaction modes, paint players, buttons, focus spot
 
 const MODE_HINTS = [
 	'both colors in the pair lose the same amount where they overlap',
@@ -9,8 +9,8 @@ const MODE_HINTS = [
 ];
 
 const CONTROLS = [
-	{ key: 'gasSpeed', label: 'Gas pressure speed', min: 0, max: 100, step: 1, unit: '%', hint: 'pressure wave propagation speed; 0 stops gas flow' },
-	{ key: 'gasDamping', label: 'Gas viscosity', min: 0, max: 100, step: 1, unit: '%', hint: 'momentum drag; low = bouncy acoustic waves, high = thick viscous drift' },
+	{ key: 'gasSpeed', label: 'Gas pressure speed', short: 'pressure', min: 0, max: 100, step: 1, unit: '%', hint: 'pressure wave propagation speed; 0 stops gas flow' },
+	{ key: 'gasDamping', label: 'Gas viscosity', short: 'viscosity', min: 0, max: 100, step: 1, unit: '%', hint: 'momentum drag; low = bouncy acoustic waves, high = thick viscous drift' },
 	{ key: 'mixRate', label: 'Mix into other color', group: 'mix', kind: 'rate', hint: 'permeability at which each color pair enters the other color; unchecked or 0% acts as a wall' },
 	{ key: 'reactRate', label: 'Reaction', group: 'react', kind: 'rate', hint: 'percent of minority consumed per tick at full concentrations; dilute reagents react much slower' },
 	{ key: 'reactExponent', label: 'Reaction dilution exponent', min: 1, max: 2, step: 1, unit: '', hint: '1: slow trace consumption; 2: stronger suppression in dilute pigment' },
@@ -24,13 +24,15 @@ const CONTROLS = [
 	{ key: 'depletion', label: 'Depletion', min: 0, max: 5, step: 0.1, unit: '/f', hint: 'color removed from every cell each frame (1.0 = 1 of 255/f); >0 forms gradient, 0 equalizes' },
 	{ key: 'playerFlow', label: 'Player supply', min: 0, max: 2000, step: 20, unit: '/f', hint: 'total growth per player per tick shared across eligible cells; 0 = unlimited' },
 	{ key: 'maxMass', label: 'Total color limit', min: 0, max: 2000, step: 20, unit: 'k', hint: 'maximum total pigment per player; 0 = unlimited' },
-	{ key: 'sourceRate', label: 'Cell production rate', min: 0, max: 255, step: 1, unit: '/f', hint: 'pigment per eligible cell per tick before fertility and saturation; 0 disables growth' },
+	{ key: 'sourceRate', label: 'Cell production rate', short: 'production', min: 0, max: 255, step: 1, unit: '/f', hint: 'pigment per eligible cell per tick before fertility and saturation; 0 disables growth' },
 	{ key: 'capBase', label: 'Max color per cell', min: 0, max: 1023, step: 1, unit: '', hint: 'per-cell ceiling on a 16-cell territory; 0 = no limit' },
 	{ key: 'capTerritory', label: 'Small territory boost', min: 0, max: 100, step: 1, unit: '%', hint: 'how far a smaller territory raises the per-cell ceiling' },
-	{ key: 'brush', label: 'Pigment brush', min: 0, max: 3, step: 1, unit: '', hint: 'pigment paint diameter in cells' },
+	{ key: 'brush', label: 'Pigment brush', short: 'brush', min: 0, max: 3, step: 1, unit: '', hint: 'pigment paint diameter in cells' },
 	{ key: 'showSources', label: 'Production overlay', min: 0, max: 1, step: 1, labels: ['off', 'on'], hint: 'mark all cells eligible to produce pigment; shared supply may still limit growth' },
 	{ key: 'substeps', label: 'Steps per frame', min: 1, max: 2, step: 1, unit: '', hint: 'physics passes per frame' },
 ];
+
+const SPOT_KEYS = ['sourceRate', 'gasSpeed', 'gasDamping', 'brush'];
 
 const Controls = {
 	knobs: [],
@@ -40,6 +42,8 @@ const Controls = {
 	dirs: [],
 	paintDot: null,
 	sceneSelect: null,
+	spotMode: null,
+	spotModeRow: null,
 
 	buildScenes() {
 		const row = document.createElement('label');
@@ -106,39 +110,70 @@ const Controls = {
 	},
 
 	buildRates(host, def) {
-		for (let p = 0; p < 3; p++) {
-			const slug = PAIR_NAMES[p].toLowerCase();
-			const row = document.createElement('div');
-			row.className = 'row';
-			const head = document.createElement('label');
-			const name = document.createElement('span');
-			name.textContent = def.label + ' ' + PAIR_NAMES[p];
-			if (def.group === 'react') {
-				const dir = document.createElement('button');
-				dir.type = 'button';
-				dir.className = 'dir';
-				dir.id = 'dir-' + slug;
-				dir.title = 'flip which color consumes the other in this pair';
-				dir.addEventListener('click', () => Controls.flipDir(p));
-				name.append(' ', dir);
-				Controls.dirs.push({ p, node: dir });
-			}
-			const val = document.createElement('output');
-			head.append(name, val);
-			const input = document.createElement('input');
-			input.type = 'range';
-			input.id = def.group + '-' + slug;
-			input.title = def.hint;
-			input.min = 0;
-			input.max = 100;
-			input.step = 1;
-			input.value = Settings[def.key][p];
-			input.addEventListener('input', () => Controls.editRate(def, p, input, val));
-			row.append(head, input);
-			host.append(row);
-			Controls.knobs.push({ def, p, row, input, val });
-			Controls.showRate(def, p, val);
+		for (let p = 0; p < 3; p++) Controls.buildRateRow(host, def, p, def.label + ' ' + PAIR_NAMES[p], false, -1);
+	},
+
+	// spot rows reuse this factory but resolve their pair from the active pigment, so two rows cover both rivals
+	buildRateRow(host, def, p, label, spot, slot) {
+		const row = document.createElement('div');
+		row.className = 'row';
+		if (spot) row.classList.add('spot-row');
+		const head = document.createElement('label');
+		const name = document.createElement('span');
+		name.textContent = label;
+		if (def.group === 'react' && !spot) {
+			const dir = document.createElement('button');
+			dir.type = 'button';
+			dir.className = 'dir';
+			dir.id = 'dir-' + PAIR_NAMES[p].toLowerCase();
+			dir.title = 'flip which color consumes the other in this pair';
+			dir.addEventListener('click', () => Controls.flipDir(p));
+			name.append(' ', dir);
+			Controls.dirs.push({ p, node: dir });
 		}
+		const val = document.createElement('output');
+		head.append(name, val);
+		const input = document.createElement('input');
+		input.type = 'range';
+		input.id = spot ? 'spot-' + def.group + '-' + slot : def.group + '-' + PAIR_NAMES[p].toLowerCase();
+		input.title = def.hint;
+		input.min = 0;
+		input.max = 100;
+		input.step = 1;
+		input.value = spot ? 0 : Settings[def.key][p];
+		input.addEventListener('input', () => {
+			const pair = spot ? Controls.spotPair(slot) : p;
+			Controls.editRate(def, pair, input);
+		});
+		row.append(head, input);
+		host.append(row);
+		Controls.knobs.push({ def, p, row, input, val, name, labelBase: spot ? label : '', spot: spot ? def.group : '', slot: spot ? slot : -1 });
+		if (!spot) Controls.showRate(def, p, val);
+	},
+
+	buildKnob(host, def, prefix = 'ctrl') {
+		const spot = prefix === 'spot';
+		const row = document.createElement('div');
+		row.className = 'row';
+		if (spot) row.classList.add('spot-row');
+		const head = document.createElement('label');
+		const name = document.createElement('span');
+		name.textContent = spot && def.short ? def.short : def.label;
+		const val = document.createElement('output');
+		head.append(name, val);
+		const input = document.createElement('input');
+		input.type = 'range';
+		input.id = prefix + '-' + def.key + (def.index === undefined ? '' : '-' + def.index);
+		input.title = def.hint;
+		input.min = def.min;
+		input.max = def.max;
+		input.step = def.step;
+		input.value = def.index === undefined ? Settings[def.key] : Settings[def.key][def.index];
+		input.addEventListener('input', () => Controls.edit(def, input));
+		row.append(head, input);
+		host.append(row);
+		Controls.knobs.push({ def, p: -1, row, input, val, spot: spot ? def.key : '', slot: -1 });
+		Controls.show(def, input, val);
 	},
 
 	build() {
@@ -151,26 +186,7 @@ const Controls = {
 				Controls.buildRates(host, def);
 				continue;
 			}
-			const row = document.createElement('div');
-			row.className = 'row';
-			const head = document.createElement('label');
-			const name = document.createElement('span');
-			name.textContent = def.label;
-			const val = document.createElement('output');
-			head.append(name, val);
-			const input = document.createElement('input');
-			input.type = 'range';
-			input.id = 'ctrl-' + def.key + (def.index === undefined ? '' : '-' + def.index);
-			input.title = def.hint;
-			input.min = def.min;
-			input.max = def.max;
-			input.step = def.step;
-			input.value = def.index === undefined ? Settings[def.key] : Settings[def.key][def.index];
-			input.addEventListener('input', () => Controls.edit(def, input, val));
-			row.append(head, input);
-			host.append(row);
-			Controls.knobs.push({ def, p: -1, row, input, val });
-			Controls.show(def, input, val);
+			Controls.buildKnob(host, def);
 		}
 
 		const host2 = $('players');
@@ -187,8 +203,56 @@ const Controls = {
 		host2.append(Controls.paintDot);
 	},
 
+	// quick controls for the hold objective: production, pressure, viscosity, brush, both pair rates, reaction mode
+	buildSpot(host) {
+		for (const key of SPOT_KEYS) {
+			const def = CONTROLS.find(d => d.key === key && d.index === undefined);
+			if (def) Controls.buildKnob(host, def, 'spot');
+		}
+		const mix = CONTROLS.find(d => d.group === 'mix');
+		const react = CONTROLS.find(d => d.group === 'react');
+		for (let slot = 0; slot < 2; slot++) Controls.buildRateRow(host, mix, -1, 'mix', true, slot);
+		for (let slot = 0; slot < 2; slot++) Controls.buildRateRow(host, react, -1, 'react', true, slot);
+		Controls.buildSpotMode(host);
+		Controls.sync();
+	},
+
+	buildSpotMode(host) {
+		const row = document.createElement('div');
+		row.className = 'row spot-row';
+		const label = document.createElement('label');
+		const name = document.createElement('span');
+		name.textContent = 'reaction mode';
+		const select = document.createElement('select');
+		select.id = 'spot-mode';
+		select.title = MODE_HINTS[0];
+		for (let m = 0; m < REACT_MODES.length; m++) {
+			const option = document.createElement('option');
+			option.value = m;
+			option.textContent = REACT_MODES[m];
+			select.append(option);
+		}
+		select.addEventListener('change', () => Controls.setMode(+select.value));
+		label.append(name, select);
+		row.append(label);
+		host.append(row);
+		Controls.spotMode = select;
+		Controls.spotModeRow = row;
+	},
+
+	spotlight(keys) {
+		for (const k of Controls.knobs) {
+			if (k.spot) k.row.classList.toggle('focus', keys.indexOf(k.spot) >= 0);
+		}
+		if (Controls.spotModeRow) Controls.spotModeRow.classList.toggle('focus', keys.indexOf('react') >= 0);
+	},
+
 	maskKey(def) {
 		return def.group === 'mix' ? 'mixMask' : 'reactMask';
+	},
+
+	spotPair(slot) {
+		return PAIR_INDEX[Settings.paint][(Settings.paint + 1 + slot) % 3];
 	},
 
 	refresh() {
@@ -211,6 +275,10 @@ const Controls = {
 
 	setMode(m) {
 		Settings.reactMode = m;
+		if (Controls.spotMode) {
+			Controls.spotMode.value = m;
+			Controls.spotMode.title = MODE_HINTS[m];
+		}
 		Controls.refresh();
 	},
 
@@ -221,16 +289,16 @@ const Controls = {
 	},
 
 	// dragging a pair rate above 0 enables that pair, so a slider always takes effect immediately
-	editRate(def, p, input, val) {
+	editRate(def, p, input) {
 		Settings[def.key][p] = +input.value;
 		if (Settings[def.key][p] > 0) Settings[Controls.maskKey(def)] |= 1 << p;
 		Controls.refresh();
 	},
 
-	edit(def, input, val) {
+	edit(def, input) {
 		if (def.index === undefined) Settings[def.key] = +input.value;
 		else Settings[def.key][def.index] = +input.value;
-		Controls.show(def, input, val);
+		Controls.sync();
 		UrlSettings.save();
 	},
 
@@ -264,13 +332,22 @@ const Controls = {
 	sync() {
 		Controls.sceneSelect.value = Settings.scene;
 		for (const k of Controls.knobs) {
+			if (k.slot >= 0) {
+				const p = Controls.spotPair(k.slot);
+				k.p = p;
+				k.name.textContent = k.labelBase + ' ' + View.names[(Settings.paint + 1 + k.slot) % 3];
+				k.input.value = Settings[k.def.key][p];
+				Controls.showRate(k.def, p, k.val);
+				k.row.classList.toggle('dim', !Controls.pairLive(k.def, p));
+				continue;
+			}
 			if (k.p >= 0) {
 				k.row.classList.toggle('dim', !Controls.pairLive(k.def, k.p));
 				k.input.value = Settings[k.def.key][k.p];
 				Controls.showRate(k.def, k.p, k.val);
-			} else {
-				Controls.show(k.def, k.input, k.val);
+				continue;
 			}
+			Controls.show(k.def, k.input, k.val);
 		}
 		for (const t of Controls.toggles) {
 			const mask = Settings[Controls.maskKey(t.def)];
@@ -278,6 +355,10 @@ const Controls = {
 		}
 		for (let m = 0; m < Controls.modes.length; m++) {
 			Controls.modes[m].classList.toggle('on', Settings.reactMode === m);
+		}
+		if (Controls.spotMode) {
+			Controls.spotMode.value = Settings.reactMode;
+			Controls.spotMode.title = MODE_HINTS[Settings.reactMode];
 		}
 		const showDir = Settings.reactMode === 3;
 		for (const d of Controls.dirs) {

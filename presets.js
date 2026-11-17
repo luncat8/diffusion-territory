@@ -17,7 +17,7 @@ const SCENE_DEFAULTS = {
 	reactDir: [0, 1, 0], response: [0, 0, 0, 0, 0, 0],
 	sourceRate: 5, sourceMode: 0, sourceDominance: 2, sourceThreshold: 1,
 	capBase: 0, capTerritory: 100, maxMass: 0, playerFlow: 0,
-	substeps: 1, showSources: 0,
+	substeps: 1, showSources: 0, holdTarget: 20,
 };
 
 const SCENE_RULES = [

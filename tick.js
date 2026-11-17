@@ -1,5 +1,5 @@
 // owns: per-frame physics phase ordering
-// edit for: changing the order of transport, reaction, depletion, or source injection
+// edit for: changing the order of transport, reaction, depletion, source injection, or objective sampling
 
 const Tick = {
 	run(s) {
@@ -14,6 +14,7 @@ const Tick = {
 		Source.inject(s);
 		Source.prepare(s);
 		Field.analyze();
+		Objective.step(s);
 	},
 };
 

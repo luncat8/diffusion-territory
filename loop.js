@@ -1,5 +1,5 @@
-// owns: the 60 Hz animation loop and stats cadence
-// edit for: sim rate or stats refresh interval
+// owns: the 60 Hz animation loop, stats cadence, and objective HUD cadence
+// edit for: sim rate, stats refresh interval, or HUD refresh interval
 
 const Loop = {
 	frame: 0,
@@ -7,6 +7,7 @@ const Loop = {
 	win: 0,
 	last: 0,
 	spent: 0,
+	ui: 0,
 	acc: 0,
 	step: 1000 / 60,
 	raf: 0,
@@ -23,6 +24,11 @@ const Loop = {
 		const dt = now - Loop.last;
 		Loop.last = now;
 		Loop.spent += dt;
+		Loop.ui += dt;
+		if (Loop.ui >= 250) {
+			Loop.ui = 0;
+			HUD.refresh();
+		}
 		if (Loop.spent >= 500) {
 			Loop.fps = Math.round(Loop.win * 1000 / Loop.spent);
 			Loop.win = 0;
