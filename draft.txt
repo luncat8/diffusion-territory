@@ -70,6 +70,7 @@ prototype a playable objective. then use the existing scenes to measure whether 
 
 add some dynamic minimal GUI panel that is useful for this objectiove or for this game mode - so user will not search across full settings what is useful now. 
 and show some useful statistics related to achieved progression to target goal.
+add solution button that make suggested changes in gui to solve task (highlight changes on click in some visually easy to understand way). and if possible add explanation panel with short text about what settings was useful. this is related to new objective panel, so if some need other settings this mean objective gui should be refactored - because by design in should contain all necessary to solve task.
 
 
 ==========================

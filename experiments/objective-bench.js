@@ -1,10 +1,12 @@
-// owns: objective measurement — hold outcome sensitivity to pressure, production, mixing, reaction, color
+// owns: objective measurement — hold outcome sensitivity to pressure, production, mixing, reaction, color, solution
 // edit for: axes, levels, run length, or metric keys
 
 const sim = require('./load')();
-const { Settings, Field, Gas, Source, Objective, Presets, SCENES, Tick } = sim;
+const { Settings, Field, Gas, Source, Objective, Presets, SCENES, Tick, Solution } = sim;
 
 const FRAMES = +(process.argv[2] || 360);
+const ONLY = process.argv[3] || '';
+const PATCH_AT = 60;
 const TARGET_S = 3;
 const PLAYER = 0;
 const SENSITIVE_S = 1;
@@ -15,6 +17,9 @@ Field.init(128, 128);
 Gas.init(Field.w, Field.h);
 Objective.init(Field.w, Field.h);
 
+// the solution axis applies the suggested patch mid-attempt, so its spread is the gain the button buys
+const PATCH = { patch: 1 };
+
 const AXES = [
 	['pressure', [['low', { gasSpeed: 20 }], ['high', { gasSpeed: 90 }]]],
 	['production', [['off', { sourceRate: 0 }], ['high', { sourceRate: 16 }]]],
@@ -23,6 +28,7 @@ const AXES = [
 		['off', { mixMask: 7, mixRate: [60, 60, 60], reactMask: 0, reactRate: [0, 0, 0] }],
 		['high', { mixMask: 7, mixRate: [60, 60, 60], reactMask: 7, reactRate: [20, 20, 20] }],
 	]],
+	['solution', [['base', null], ['patch', PATCH]]],
 ];
 
 // equal opening move for every variant: take a disc inside the ring, then let the rules decide the contest
@@ -43,7 +49,7 @@ function claim(player) {
 
 function setup(scene, over, player) {
 	Presets.apply(Settings, scene);
-	if (over) Presets.copyRules(Settings, over);
+	if (over && over !== PATCH) Presets.copyRules(Settings, over);
 	Settings.paint = player;
 	Settings.holdTarget = TARGET_S;
 	Field.reset();
@@ -54,11 +60,16 @@ function setup(scene, over, player) {
 	Field.caps(Settings.capBase, Settings.capTerritory, Settings.maxMass);
 	Source.prepare(Settings);
 	Objective.reset(Settings);
+	Solution.last = null;
 }
 
 function measure(scene, over, player = PLAYER) {
 	setup(scene, over, player);
-	for (let i = 0; i < FRAMES; i++) Tick.run(Settings);
+	const patch = over === PATCH;
+	for (let i = 0; i < FRAMES; i++) {
+		if (patch && i === PATCH_AT) Solution.apply(Settings, Objective);
+		Tick.run(Settings);
+	}
 	return {
 		hold: Objective.best / 60,
 		control: Objective.controlFrames / 60,
@@ -94,6 +105,7 @@ function flag(controlSpread, shareSpread) {
 
 const sceneCount = SCENES.length;
 for (const [axis, levels] of AXES) {
+	if (ONLY && axis !== ONLY) continue;
 	const axisHolds = [];
 	const axisControls = [];
 	const axisShares = [];
@@ -123,7 +135,7 @@ for (const [axis, levels] of AXES) {
 const playerHolds = [];
 const playerControls = [];
 const playerShares = [];
-for (let scene = 0; scene < sceneCount; scene++) {
+for (let scene = 0; scene < sceneCount && (!ONLY || ONLY === 'player'); scene++) {
 	const holds = [];
 	const controls = [];
 	const shares = [];
@@ -141,6 +153,8 @@ for (let scene = 0; scene < sceneCount; scene++) {
 		`control_spread_s=${spread(controls).toFixed(1)} share_spread_pp=${spread(shares).toFixed(1)} ` +
 		`sensitive=${flag(spread(controls), spread(shares))}`);
 }
-console.log(`axis=player scenes=${sceneCount} mean_hold_spread_s=${mean(playerHolds).toFixed(1)} ` +
-	`mean_control_spread_s=${mean(playerControls).toFixed(1)} mean_share_spread_pp=${mean(playerShares).toFixed(1)} ` +
-	`sensitive=${flag(mean(playerControls), mean(playerShares))}`);
+if (!ONLY || ONLY === 'player') {
+	console.log(`axis=player scenes=${sceneCount} mean_hold_spread_s=${mean(playerHolds).toFixed(1)} ` +
+		`mean_control_spread_s=${mean(playerControls).toFixed(1)} mean_share_spread_pp=${mean(playerShares).toFixed(1)} ` +
+		`sensitive=${flag(mean(playerControls), mean(playerShares))}`);
+}

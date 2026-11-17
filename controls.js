@@ -13,8 +13,8 @@ const CONTROLS = [
 	{ key: 'gasDamping', label: 'Gas viscosity', short: 'viscosity', min: 0, max: 100, step: 1, unit: '%', hint: 'momentum drag; low = bouncy acoustic waves, high = thick viscous drift' },
 	{ key: 'mixRate', label: 'Mix into other color', group: 'mix', kind: 'rate', hint: 'permeability at which each color pair enters the other color; unchecked or 0% acts as a wall' },
 	{ key: 'reactRate', label: 'Reaction', group: 'react', kind: 'rate', hint: 'percent of minority consumed per tick at full concentrations; dilute reagents react much slower' },
-	{ key: 'reactExponent', label: 'Reaction dilution exponent', min: 1, max: 2, step: 1, unit: '', hint: '1: slow trace consumption; 2: stronger suppression in dilute pigment' },
-	{ key: 'sourceMode', label: 'Production rule', min: 0, max: 2, step: 1, labels: ['dominance', 'low pigment', 'low pigment + threshold'], hint: 'all modes require at least 5% of the producing pigment; below 5% is uncontrolled' },
+	{ key: 'reactExponent', label: 'Reaction dilution exponent', short: 'dilution', min: 1, max: 2, step: 1, unit: '', hint: '1: slow trace consumption; 2: stronger suppression in dilute pigment' },
+	{ key: 'sourceMode', label: 'Production rule', short: 'rule', min: 0, max: 2, step: 1, labels: ['dominance', 'low pigment', 'low pigment + threshold'], hint: 'all modes require at least 5% of the producing pigment; below 5% is uncontrolled' },
 	{ key: 'sourceDominance', label: 'Dominance multiplier k', min: 1, max: 5, step: 0.1, unit: '×', hint: 'dominance production requires own pigment > k × sum of rivals' },
 	{ key: 'sourceThreshold', label: 'Production total threshold', min: 0.05, max: 3, step: 0.05, unit: '×255', hint: 'thresholded mode produces only when total pigment is below this value' },
 	...['R toward G', 'R toward B', 'G toward R', 'G toward B', 'B toward R', 'B toward G'].map((label, index) => ({
@@ -32,7 +32,12 @@ const CONTROLS = [
 	{ key: 'substeps', label: 'Steps per frame', min: 1, max: 2, step: 1, unit: '', hint: 'physics passes per frame' },
 ];
 
-const SPOT_KEYS = ['sourceRate', 'gasSpeed', 'gasDamping', 'brush'];
+// the focus block carries every setting a solution may write, so the objective GUI can solve it alone
+const SPOT_KEYS = ['sourceRate', 'sourceMode', 'gasSpeed', 'gasDamping', 'brush', 'reactExponent'];
+
+const SPOT_SELECTS = [
+	{ def: { key: 'reactMode', label: 'reaction mode', labels: REACT_MODES, hints: MODE_HINTS }, focus: 'react', wide: 1 },
+];
 
 const Controls = {
 	knobs: [],
@@ -40,10 +45,10 @@ const Controls = {
 	toggles: [],
 	modes: [],
 	dirs: [],
+	selects: [],
 	paintDot: null,
 	sceneSelect: null,
-	spotMode: null,
-	spotModeRow: null,
+	flashTimer: 0,
 
 	buildScenes() {
 		const row = document.createElement('label');
@@ -85,10 +90,10 @@ const Controls = {
 			tick.addEventListener('change', () => Controls.setPair(def, p, tick.checked));
 			l.append(tick, PAIR_NAMES[p]);
 			g.append(l);
-			Controls.toggles.push({ def, p, node: tick });
+			Controls.toggles.push({ def, p, node: tick, label: l });
 		}
 		g.append(all);
-		Controls.toggles.push({ def, p: -1, node: allTick });
+		Controls.toggles.push({ def, p: -1, node: allTick, label: all });
 		host.append(g);
 	},
 
@@ -120,16 +125,17 @@ const Controls = {
 		if (spot) row.classList.add('spot-row');
 		const head = document.createElement('label');
 		const name = document.createElement('span');
-		name.textContent = label;
-		if (def.group === 'react' && !spot) {
+		const text = document.createTextNode(label);
+		name.append(text);
+		if (def.group === 'react') {
 			const dir = document.createElement('button');
 			dir.type = 'button';
 			dir.className = 'dir';
-			dir.id = 'dir-' + PAIR_NAMES[p].toLowerCase();
+			dir.id = spot ? 'spot-dir-' + slot : 'dir-' + PAIR_NAMES[p].toLowerCase();
 			dir.title = 'flip which color consumes the other in this pair';
-			dir.addEventListener('click', () => Controls.flipDir(p));
+			dir.addEventListener('click', () => Controls.flipDir(spot ? Controls.spotPair(slot) : p));
 			name.append(' ', dir);
-			Controls.dirs.push({ p, node: dir });
+			Controls.dirs.push({ p, node: dir, slot: spot ? slot : -1 });
 		}
 		const val = document.createElement('output');
 		head.append(name, val);
@@ -147,7 +153,7 @@ const Controls = {
 		});
 		row.append(head, input);
 		host.append(row);
-		Controls.knobs.push({ def, p, row, input, val, name, labelBase: spot ? label : '', spot: spot ? def.group : '', slot: spot ? slot : -1 });
+		Controls.knobs.push({ def, p, row, input, val, text, labelBase: spot ? label : '', spot: spot ? def.group : '', slot: spot ? slot : -1 });
 		if (!spot) Controls.showRate(def, p, val);
 	},
 
@@ -203,48 +209,110 @@ const Controls = {
 		host2.append(Controls.paintDot);
 	},
 
-	// quick controls for the hold objective: production, pressure, viscosity, brush, both pair rates, reaction mode
+	// quick controls for the hold objective: production and its rule, pressure, viscosity, brush, dilution,
+	// both pair rates with their absorb direction, and the reaction mode
 	buildSpot(host) {
 		for (const key of SPOT_KEYS) {
 			const def = CONTROLS.find(d => d.key === key && d.index === undefined);
-			if (def) Controls.buildKnob(host, def, 'spot');
+			if (def.labels) Controls.buildSelect(host, { def, focus: 'sourceRate' });
+			else Controls.buildKnob(host, def, 'spot');
 		}
 		const mix = CONTROLS.find(d => d.group === 'mix');
 		const react = CONTROLS.find(d => d.group === 'react');
 		for (let slot = 0; slot < 2; slot++) Controls.buildRateRow(host, mix, -1, 'mix', true, slot);
 		for (let slot = 0; slot < 2; slot++) Controls.buildRateRow(host, react, -1, 'react', true, slot);
-		Controls.buildSpotMode(host);
+		for (const spec of SPOT_SELECTS) Controls.buildSelect(host, spec);
 		Controls.sync();
 	},
 
-	buildSpotMode(host) {
+	buildSelect(host, spec) {
+		const def = spec.def;
 		const row = document.createElement('div');
 		row.className = 'row spot-row';
+		if (spec.wide) row.classList.add('spot-wide');
 		const label = document.createElement('label');
 		const name = document.createElement('span');
-		name.textContent = 'reaction mode';
+		name.textContent = def.short || def.label;
 		const select = document.createElement('select');
-		select.id = 'spot-mode';
-		select.title = MODE_HINTS[0];
-		for (let m = 0; m < REACT_MODES.length; m++) {
+		select.id = 'spot-' + def.key;
+		select.title = def.hints ? def.hints[Settings[def.key]] : def.hint;
+		for (let v = 0; v < def.labels.length; v++) {
 			const option = document.createElement('option');
-			option.value = m;
-			option.textContent = REACT_MODES[m];
+			option.value = v;
+			option.textContent = def.labels[v];
 			select.append(option);
 		}
-		select.addEventListener('change', () => Controls.setMode(+select.value));
+		select.addEventListener('change', () => Controls.setSelect(def, +select.value));
 		label.append(name, select);
 		row.append(label);
 		host.append(row);
-		Controls.spotMode = select;
-		Controls.spotModeRow = row;
+		Controls.selects.push({ spec, def, node: select, row, focus: spec.focus });
 	},
 
 	spotlight(keys) {
 		for (const k of Controls.knobs) {
 			if (k.spot) k.row.classList.toggle('focus', keys.indexOf(k.spot) >= 0);
 		}
-		if (Controls.spotModeRow) Controls.spotModeRow.classList.toggle('focus', keys.indexOf('react') >= 0);
+		for (const s of Controls.selects) s.row.classList.toggle('focus', keys.indexOf(s.focus) >= 0);
+	},
+
+	// a solution marks every control it wrote: outline, old -> new value, cleared after a moment
+	flash(edits) {
+		Controls.unflash();
+		Controls.flashTimer = setTimeout(Controls.unflash, 2600);
+		for (const e of edits) Controls.light(e);
+	},
+
+	light(e) {
+		for (const k of Controls.knobs) {
+			if (!Controls.knobHit(k, e)) continue;
+			k.row.classList.add('solved');
+			k.val.textContent = Controls.changeValue(k, e);
+		}
+		for (const t of Controls.toggles) {
+			if (e.enable && t.def.key === e.key && t.p === e.index) t.label.classList.add('solved');
+		}
+		for (const d of Controls.dirs) {
+			if (e.key === 'reactDir' && d.p === e.index) d.node.classList.add('solved');
+		}
+		if (e.key === 'reactMode') {
+			for (const m of Controls.modes) m.classList.toggle('solved', m.id === 'mode-' + REACT_MODES[e.to]);
+			for (const s of Controls.selects) if (s.def.key === 'reactMode') s.row.classList.add('solved');
+		}
+	},
+
+	knobHit(k, e) {
+		if (k.def.kind === 'rate') return k.def.key === e.key && k.p === e.index;
+		return k.def.key === e.key && k.def.index === undefined;
+	},
+
+	changeValue(k, e) {
+		if (k.def.kind === 'rate') return e.enable ? 'off → ' + e.to + '%' : e.from + '% → ' + e.to + '%';
+		return Controls.format(k.def, e.from) + ' → ' + Controls.format(k.def, e.to);
+	},
+
+	changeText(e) {
+		if (e.key === 'reactMode') return 'mode ' + REACT_MODES[e.from] + ' → ' + REACT_MODES[e.to];
+		if (e.key === 'reactDir') return 'absorb ' + View.dirLabel(e.index, e.from) + ' → ' + View.dirLabel(e.index, e.to);
+		if (e.key === 'mixRate' || e.key === 'reactRate') {
+			const pair = (e.key === 'mixRate' ? 'mix ' : 'react ') + PAIR_NAMES[e.index];
+			if (e.enable) return pair + ' enabled · ' + e.to + '%';
+			return pair + ' ' + e.from + ' → ' + e.to + '%';
+		}
+		const def = CONTROLS.find(d => d.key === e.key && d.index === undefined);
+		if (!def) return e.key + ' ' + e.from + ' → ' + e.to;
+		return (def.short || def.label) + ' ' + Controls.format(def, e.from) + ' → ' + Controls.format(def, e.to);
+	},
+
+	unflash() {
+		clearTimeout(Controls.flashTimer);
+		Controls.flashTimer = 0;
+		for (const k of Controls.knobs) k.row.classList.remove('solved');
+		for (const t of Controls.toggles) t.label.classList.remove('solved');
+		for (const d of Controls.dirs) d.node.classList.remove('solved');
+		for (const m of Controls.modes) m.classList.remove('solved');
+		for (const s of Controls.selects) s.row.classList.remove('solved');
+		Controls.sync();
 	},
 
 	maskKey(def) {
@@ -275,10 +343,11 @@ const Controls = {
 
 	setMode(m) {
 		Settings.reactMode = m;
-		if (Controls.spotMode) {
-			Controls.spotMode.value = m;
-			Controls.spotMode.title = MODE_HINTS[m];
-		}
+		Controls.refresh();
+	},
+
+	setSelect(def, value) {
+		Settings[def.key] = value;
 		Controls.refresh();
 	},
 
@@ -304,13 +373,17 @@ const Controls = {
 
 	show(def, input, val) {
 		const v = def.index === undefined ? Settings[def.key] : Settings[def.key][def.index];
-		const offable = def.key === 'capBase' || def.key === 'maxMass' || def.key === 'playerFlow';
-		if (def.labels) val.textContent = def.labels[v];
-		else if (offable) val.textContent = v ? v + def.unit : 'off';
-		else if (def.key === 'brush') val.textContent = (v * 2 + 1) + 'px';
-		else if (def.key === 'depletion') val.textContent = v.toFixed(1) + def.unit;
-		else val.textContent = v + def.unit;
+		val.textContent = Controls.format(def, v);
 		input.value = v;
+	},
+
+	format(def, v) {
+		const offable = def.key === 'capBase' || def.key === 'maxMass' || def.key === 'playerFlow';
+		if (def.labels) return def.labels[v];
+		if (offable) return v ? v + def.unit : 'off';
+		if (def.key === 'brush') return (v * 2 + 1) + 'px';
+		if (def.key === 'depletion') return v.toFixed(1) + def.unit;
+		return v + def.unit;
 	},
 
 	showRate(def, p, val) {
@@ -335,7 +408,7 @@ const Controls = {
 			if (k.slot >= 0) {
 				const p = Controls.spotPair(k.slot);
 				k.p = p;
-				k.name.textContent = k.labelBase + ' ' + View.names[(Settings.paint + 1 + k.slot) % 3];
+				k.text.nodeValue = k.labelBase + ' ' + View.names[(Settings.paint + 1 + k.slot) % 3];
 				k.input.value = Settings[k.def.key][p];
 				Controls.showRate(k.def, p, k.val);
 				k.row.classList.toggle('dim', !Controls.pairLive(k.def, p));
@@ -356,12 +429,13 @@ const Controls = {
 		for (let m = 0; m < Controls.modes.length; m++) {
 			Controls.modes[m].classList.toggle('on', Settings.reactMode === m);
 		}
-		if (Controls.spotMode) {
-			Controls.spotMode.value = Settings.reactMode;
-			Controls.spotMode.title = MODE_HINTS[Settings.reactMode];
+		for (const s of Controls.selects) {
+			s.node.value = Settings[s.def.key];
+			if (s.def.hints) s.node.title = s.def.hints[Settings[s.def.key]];
 		}
 		const showDir = Settings.reactMode === 3;
 		for (const d of Controls.dirs) {
+			if (d.slot >= 0) d.p = Controls.spotPair(d.slot);
 			d.node.hidden = !showDir;
 			d.node.textContent = View.dirLabel(d.p, Settings.reactDir[d.p]);
 		}

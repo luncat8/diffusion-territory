@@ -2,8 +2,7 @@
 
 ## style
 
-- use a single tab indentation. LF end.
-const $ = id => document.getElementById(id);
+- use a single tab indentation. LF end. main.js preallocates `$ = id => document.getElementById(id)` for every file.
 
 - avoid deep nesting of braces { } and long if-else.
 - flatten with early returns, helper functions, or flat data tables.
@@ -56,12 +55,11 @@ getObj().data().action()
 	// owns: input handling and rebinding
 	// edit for: key maps, bind changes
 - relevance is decided from head -12. never read a full file just to learn what it is.
-
 - keep this map updated when ownership changes:
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
 	settings.js — owns rule values, reaction mode list, and hold target default. edit for defaults.
 	objective.js — owns the capture-and-hold ring, hold timer, and attempt statistics. edit for zone shape, control threshold, decay, goal rules.
-	hud.js — owns the objective column: hold bar, zone shares, attempt history, focus host, hints. edit for objective readouts, hints, layout.
+	hud.js — owns the objective column: task actions, hold bar, zone shares, attempt history, focus host, hints, solution button and explanation. edit for objective readouts, hints, layout.
 	presets.js — owns reproducible visual test scenes and their simulation settings. edit for scene layouts and starting conditions.
 	field.js — owns planar Q12.12 grid, pair tables/metrics, analysis, and caps. edit for storage, cap formula.
 	source.js — owns pigment painting, local production eligibility and shared-supply growth. edit for paint/seed/production rules.
@@ -69,7 +67,9 @@ getObj().data().action()
 	react.js — owns per-pair reaction modes (mutual/majority/convert/absorb) and pair scoring. edit for reaction laws.
 	tick.js — owns step order and objective sampling. edit for phase order.
 	view.js — owns canvas, cursor readout, source marks, objective ring, player & pair stats. edit for color/UI of the map.
-	controls.js — owns panel widgets, focus widgets, pair toggles, reaction mode/dir controls, and scene selection. edit for sliders and buttons.
+	controls.js — owns panel widgets, focus widgets, pair toggles, reaction mode/dir controls, scene selection, and the solution highlight. edit for sliders and buttons.
+	solution.js — owns the suggested objective setup, its explanation plan, and the revert snapshot. edit for suggestion values, when a rule fires, or wording.
+	task.js — owns capture-and-hold task variants and default GUI restoration. edit for scene/pigment/target rolls or default reset scope.
 	url-settings.js — owns shareable URL persistence for GUI settings. edit for URL encoding and validation.
 	loop.js — owns pacing, stats cadence, and HUD cadence. edit for frame loop.
 	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
@@ -140,9 +140,9 @@ getObj().data().action()
 
 ## current workstream
 
-plans 0.2.0–0.2.3, 0.3.1 and 0.4.0 (archive/); constraints: planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
+plans 0.2.0–0.2.3, 0.3.1, 0.4.0 and 0.4.1 (archive/); constraints: planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
 	after sim change: checks.js; after UI/boot change: dom-smoke.js.
-latest: 0.4.0 capture-and-hold ring, objective column with focus controls and attempt statistics, objective checks and scene bench; 0.3.1 local production, 5% control threshold, smooth fractional reactions, directional gradient response; `npm run checks` includes concentration and objective regressions.
+latest: 0.4.1 solution button: one-click suggested setup, changed-control highlight, explanation panel, revert, wider objective column, prominent new-task/reset-GUI actions and pair-mask activation; the focus block covers every key a suggestion can write; 0.4.0 capture-and-hold ring, objective column with focus controls and attempt statistics, objective checks and scene bench; 0.3.1 local production, 5% control threshold, smooth fractional reactions, directional gradient response; `npm run checks` includes concentration, objective and solution regressions.
 
 ## housekeeping
 

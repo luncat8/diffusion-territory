@@ -6,9 +6,9 @@ const vm = require('vm');
 const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
-const SIM = ['settings.js', 'field.js', 'presets.js', 'source.js', 'gas.js', 'react.js', 'objective.js', 'tick.js'];
+const SIM = ['settings.js', 'field.js', 'presets.js', 'source.js', 'gas.js', 'react.js', 'objective.js', 'solution.js', 'tick.js'];
 const API = 'globalThis.API = { Settings, REACT_MODES, SCENES, Field, Presets, Source, Gas, React, Objective, Tick, ' +
-	'FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF, PAIR_A, PAIR_B, PAIR_NAMES, PAIR_INDEX, ' +
+	'FP, FP_ONE, FP_HALF, NO_COLOR, REF_OWNED, CAP_DEF, PAIR_A, PAIR_B, PAIR_NAMES, PAIR_INDEX, Solution, ' +
 	'ZONE_R, NEED_PCT, HOLD_CAPTURE, HOLD_ACTIVE, HOLD_DONE }';
 
 function pageScripts() {

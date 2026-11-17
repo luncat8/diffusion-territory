@@ -38,8 +38,10 @@ const Main = {
 	},
 
 	loadScene(index) {
+		const solved = HUD.solveActive();
 		Presets.apply(Settings, index);
 		Main.reset();
+		if (solved) HUD.rescene();
 		UrlSettings.save();
 	},
 

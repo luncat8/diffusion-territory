@@ -223,3 +223,42 @@ Give every variant one identical opening claim instead: clear and paint a radius
 ## duplicate widgets need one sync loop, not one copy per panel
 
 A compact focus panel reuses the panel's widget factory and reads the same `Settings`. Every edit resyncs all knobs, so the duplicate slider, the panel slider and the URL never disagree. Build duplicate rows from the definition table and resolve pair-dependent values (rival pair index, labels) at sync time; copying values at build time creates a second source of truth that drifts on the first colour switch.
+
+## the objective panel must own every key its solver writes
+
+A one-click suggested setup is a second, invisible writer of `Settings`. If a suggestion raises a key that has no
+widget in the objective column, the numbers move somewhere else on the page and the panel's claim about "the
+settings that matter" is false. Keep the writable list with the solver (`Solution.keys`) and the focus-block list
+with the controls (`SPOT_KEYS`, `SPOT_SELECTS`), then assert set inclusion in a node check. Deriving the widgets
+from the solver list inverts the dependency — the panel would own rule semantics — and a solver that adds a key
+without a widget is exactly the defect the check catches.
+
+Related: a focus row that appends a direction button to its label span and later rewrites the label with
+`textContent` silently deletes the button. The node and its listener stay in the JS array, so a check that only
+counts `Controls.dirs` passes while the DOM has no direction control. Keep the label in its own text node and
+assign `nodeValue`.
+
+## absorb direction is the ring lever, production alone is not
+
+Measured on the six scenes with the same radius-8 opening claim, patch applied at frame 60, 160 frames
+(`objective-bench.js 160 solution`, 2026-11): production 16 on the low-pigment rule alone left control time
+unchanged or slightly worse (scene 5: 2.32 s → 2.20 s), while mixing 55 % + absorb 12 % + directions pointed at
+the player moved scenes 1–3 from 0 s to 1.4–1.7 s of control and from 34–55 % to 100 % peak ring share, with no
+scene losing control time. Mean gain 0.8 s control, 26.4 pp peak share.
+
+With default directions the same patch gained nothing on 3 of 6 scenes: absorb is one-way, so an unset direction
+lets the rival eat the player in one of the two pairs. A suggestion that enables absorb must write directions.
+
+## a pair rate is inert without its mask bit
+
+A solver that compares only `mixRate[p]` / `reactRate[p]` to its target can report a no-op while the pair is
+disabled, leaving the GUI apparently solved but physically unchanged. Treat the rate and its mask bit as one
+control: record an `enable` edit when the target rate is already stored but the bit is off, restore the whole
+mask on revert, and highlight both the pair checkbox and the focus slider.
+
+## task defaults and nondeterministic rolls
+
+`Task.defaults` consumes `UrlSettings.baseline(scene)` instead of keeping a second copy of application defaults;
+the baseline already layers the selected scene profile over the boot settings. In DOM checks, stub `Task.roll`
+with a fixed sequence rather than replacing global `Math.random`, which leaks into other checks and jsdom
+internals.

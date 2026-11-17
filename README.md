@@ -6,4 +6,4 @@ Open `index.html` directly (`file://`) or serve the root folder:
 
 	python3 -m http.server 8000
 
-Checks: `npm run checks` (simulation and objective), `npm run smoke` (`jsdom`), `npm run bench`, `npm run objective-bench` (scene measurement, minutes).
+Checks: `npm run checks` (simulation, objective and solution), `npm run smoke` (`jsdom`), `npm run bench`, `npm run objective-bench` (scene measurement, minutes; `… <frames> solution` for the solution axis).

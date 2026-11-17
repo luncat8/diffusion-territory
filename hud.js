@@ -1,7 +1,5 @@
-// owns: objective HUD — hold progress, zone shares, attempt history, focus hint, quick controls host
-// edit for: objective readouts, hint wording, HUD layout, goal presets
-
-const HUD_TARGETS = [10, 20, 30, 60];
+// owns: objective HUD — task actions, hold progress, zone shares, attempt history, focus controls, solution and its explanation
+// edit for: task actions, objective readouts, hint wording, HUD layout, solution panel
 
 const HUD = {
 	host: null,
@@ -17,6 +15,15 @@ const HUD = {
 	fold: null,
 	picks: [],
 	zBars: [],
+	solveBtn: null,
+	revertBtn: null,
+	why: null,
+	whyHead: null,
+	whyNotes: null,
+	whyChanged: null,
+	newTaskBtn: null,
+	resetGuiBtn: null,
+	taskLine: null,
 
 	init(host) {
 		HUD.host = host;
@@ -61,6 +68,23 @@ const HUD = {
 		main.append(head);
 		main.append(HUD.el('div', 'hud-sub', 'hold the center ring · ' + NEED_PCT + '% share'));
 
+		const taskRow = HUD.el('div', 'hud-task-row');
+		taskRow.append(HUD.el('span', 'hud-task-label', 'task'));
+		HUD.newTaskBtn = HUD.el('button', 'hud-task primary', 'new task');
+		HUD.newTaskBtn.type = 'button';
+		HUD.newTaskBtn.id = 'hud-new-task';
+		HUD.newTaskBtn.title = 'load a different scene, pigment and hold target; restore scene defaults and restart';
+		HUD.newTaskBtn.addEventListener('click', HUD.newTask);
+		HUD.resetGuiBtn = HUD.el('button', 'hud-task', 'reset GUI');
+		HUD.resetGuiBtn.type = 'button';
+		HUD.resetGuiBtn.id = 'hud-reset-gui';
+		HUD.resetGuiBtn.title = 'keep this scene; restore default sliders, R pigment, brush and 20 s target';
+		HUD.resetGuiBtn.addEventListener('click', HUD.resetGui);
+		taskRow.append(HUD.newTaskBtn, HUD.resetGuiBtn);
+		main.append(taskRow);
+		HUD.taskLine = HUD.el('div', 'hud-task-name', '');
+		main.append(HUD.taskLine);
+
 		const bar = HUD.el('div', 'hud-bar');
 		bar.title = 'fills while you dominate ' + NEED_PCT + '% of the ring; losing it drains twice as fast';
 		HUD.fill = HUD.el('div', 'hud-fill');
@@ -101,11 +125,27 @@ const HUD = {
 		const spots = HUD.el('div', 'hud-spots');
 		spots.id = 'hud-spots';
 		focus.append(spots);
+		const solveRow = HUD.el('div', 'hud-solve-row');
+		HUD.solveBtn = HUD.el('button', 'hud-solve', 'solve');
+		HUD.solveBtn.type = 'button';
+		HUD.solveBtn.id = 'hud-solve';
+		HUD.solveBtn.title = 'apply the suggested settings and mark every control that changes';
+		HUD.solveBtn.addEventListener('click', () => HUD.solve());
+		HUD.revertBtn = HUD.el('button', 'hud-revert', 'revert');
+		HUD.revertBtn.type = 'button';
+		HUD.revertBtn.id = 'hud-revert';
+		HUD.revertBtn.title = 'restore the settings from before the suggestion';
+		HUD.revertBtn.hidden = true;
+		HUD.revertBtn.addEventListener('click', HUD.revert);
+		solveRow.append(HUD.solveBtn, HUD.revertBtn);
+		focus.append(solveRow);
+		focus.append(HUD.whyPanel());
+
 		const foot = HUD.el('div', 'hud-foot');
 		const label = HUD.el('label', 'hud-target-label', 'target');
 		HUD.target = document.createElement('select');
 		HUD.target.id = 'hud-target';
-		for (const value of HUD_TARGETS) {
+		for (const value of TASK_TARGETS) {
 			const option = document.createElement('option');
 			option.value = value;
 			option.textContent = value + ' s';
@@ -124,10 +164,81 @@ const HUD = {
 		host.append(main, side, focus);
 	},
 
+	whyPanel() {
+		HUD.why = HUD.el('div', 'hud-why');
+		HUD.why.id = 'hud-why';
+		HUD.why.hidden = true;
+		HUD.whyHead = HUD.el('div', 'hud-why-head');
+		HUD.whyNotes = HUD.el('div', 'hud-why-notes');
+		HUD.whyChanged = HUD.el('div', 'hud-why-changes');
+		HUD.why.append(HUD.whyHead, HUD.whyNotes, HUD.whyChanged);
+		return HUD.why;
+	},
+
+	newTask() {
+		Task.generate(Settings);
+		HUD.startTask('new task', 'scene, pigment and target are new; every setting is back to its scene default');
+	},
+
+	resetGui() {
+		Task.defaults(Settings);
+		HUD.startTask('GUI defaults', 'the current scene is kept; every setting is back to its default');
+	},
+
+	startTask(headline, note) {
+		Solution.clear();
+		Controls.unflash();
+		Main.reset();
+		Controls.refresh();
+		HUD.showWhy({ headline, notes: [HUD.taskText(), note], edits: [] });
+		HUD.refresh();
+	},
+
+	taskText() {
+		return SCENES[Settings.scene].name + ' · ' + View.names[Settings.paint] + ' pigment · hold ' + Settings.holdTarget + ' s';
+	},
+
+	solve(quiet) {
+		const plan = Solution.apply(Settings, Objective);
+		Controls.refresh();
+		if (!quiet) Controls.flash(plan.edits);
+		HUD.showWhy(plan);
+		HUD.refresh();
+	},
+
+	// scene rules replace every setting, so the suggestion restarts from the new scene
+	solveActive() {
+		return Solution.active();
+	},
+
+	rescene() {
+		Solution.clear();
+		HUD.solve(true);
+	},
+
+	revert() {
+		const plan = Solution.revert(Settings);
+		if (!plan) return;
+		Controls.refresh();
+		Controls.flash(plan.edits);
+		HUD.showWhy(plan);
+		HUD.refresh();
+	},
+
+	showWhy(plan) {
+		HUD.whyHead.textContent = plan.headline;
+		HUD.whyNotes.replaceChildren();
+		for (const note of plan.notes) HUD.whyNotes.append(HUD.el('div', 'hud-why-note', note));
+		HUD.whyChanged.textContent = plan.edits.length ? 'changed · ' + plan.edits.map(Controls.changeText).join(' · ') : '';
+		HUD.why.hidden = false;
+		HUD.revertBtn.hidden = !Solution.active();
+	},
+
 	pick(p) {
 		if (p !== Settings.paint) {
 			Controls.pick(p);
 			Objective.reset(Settings);
+			if (Solution.active()) HUD.solve();
 		}
 		HUD.refresh();
 	},
@@ -183,6 +294,7 @@ const HUD = {
 	refresh() {
 		if (!HUD.host || !Objective.area) return;
 		if (+HUD.target.value !== Settings.holdTarget) HUD.syncTarget();
+		HUD.taskLine.textContent = HUD.taskText();
 		const o = Objective;
 		const p = o.player < 0 ? Settings.paint : o.player;
 		const rival = HUD.rival();

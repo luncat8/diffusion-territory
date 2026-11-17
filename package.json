@@ -1,9 +1,9 @@
 {
 	"name": "diffusion-territory",
 	"private": true,
-	"description": "color territory gas dynamics simulation — node side is only for checks and measurements",
+	"description": "color territory gas dynamics simulation \u2014 node side is only for checks and measurements",
 	"scripts": {
-		"checks": "node experiments/checks.js && node experiments/concentration-checks.js && node experiments/objective-checks.js",
+		"checks": "node experiments/checks.js && node experiments/concentration-checks.js && node experiments/objective-checks.js && node experiments/solution-checks.js",
 		"smoke": "node experiments/dom-smoke.js",
 		"bench": "node experiments/gas-bench.js",
 		"objective-bench": "node experiments/objective-bench.js",
