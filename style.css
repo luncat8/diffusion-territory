@@ -60,6 +60,29 @@ body {
 	gap: 8px;
 }
 
+#scenes {
+	padding-bottom: 8px;
+	border-bottom: 1px solid var(--line);
+}
+
+.scene-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	color: var(--dim);
+}
+
+.scene-row select {
+	min-width: 0;
+	flex: 1;
+	background: #20202a;
+	color: var(--text);
+	border: 1px solid var(--line);
+	padding: 4px;
+	font: inherit;
+}
+
 #players {
 	display: flex;
 	gap: 6px;

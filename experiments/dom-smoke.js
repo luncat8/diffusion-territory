@@ -43,8 +43,10 @@ function check(name, ok, value) {
 	console.log(`check=${name} ok=${ok ? 1 : 0} value=${value}`);
 }
 
-check('boot_scripts', scripts.length === 10, scripts.join(','));
+check('boot_scripts', scripts.length === 11, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
+check('scene_presets', doc.querySelectorAll('#scene-select option').length === 6 &&
+	doc.getElementById('scene-select').value === '0', `scene=${doc.getElementById('scene-select').value}`);
 const ranges = doc.querySelectorAll('#rows input[type=range]');
 check('sliders', ranges.length === 27, `rows=${ranges.length}`);
 check('mix_checkboxes', ['mix-all', 'mix-rg-on', 'mix-rb-on', 'mix-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
@@ -157,6 +159,18 @@ doc.getElementById('reset').click();
 const resetField = scope('Field');
 check('reset_reseeds', Array.from(resetField.src).filter(Boolean).length === 60 &&
 	resetField.total[0] > 0 && resetField.total[1] > 0 && resetField.total[2] > 0, 'three sources with heaps');
+
+const sceneSelect = doc.getElementById('scene-select');
+let scenesLoad = true;
+for (let i = 0; i < sceneSelect.options.length; i++) {
+	sceneSelect.value = String(i);
+	sceneSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
+	scenesLoad = scenesLoad && scope('Settings').scene === i && scope('Loop').frame === 0 &&
+		scope('Field').total[0] + scope('Field').total[1] + scope('Field').total[2] > 0;
+}
+check('scene_selection_loads_layout_and_rules', scenesLoad, `scenes=${sceneSelect.options.length}`);
+sceneSelect.value = '0';
+sceneSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
 
 setTimeout(() => {
 	check('raf_loop', scope('Loop').frame > 0, `frames=${scope('Loop').frame}`);

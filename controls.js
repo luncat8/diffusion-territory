@@ -39,6 +39,24 @@ const Controls = {
 	modes: [],
 	dirs: [],
 	paintDot: null,
+	sceneSelect: null,
+
+	buildScenes() {
+		const row = document.createElement('label');
+		row.className = 'scene-row';
+		row.append('test scene');
+		Controls.sceneSelect = document.createElement('select');
+		Controls.sceneSelect.id = 'scene-select';
+		for (let i = 0; i < SCENES.length; i++) {
+			const option = document.createElement('option');
+			option.value = i;
+			option.textContent = SCENES[i].name;
+			Controls.sceneSelect.append(option);
+		}
+		Controls.sceneSelect.addEventListener('change', () => Main.loadScene(+Controls.sceneSelect.value));
+		row.append(Controls.sceneSelect);
+		$('scenes').append(row);
+	},
 
 	// one checkbox per pair plus an "all" shortcut; individual pair bits stay authoritative
 	buildChecks(host, def) {
@@ -124,6 +142,7 @@ const Controls = {
 	},
 
 	build() {
+		Controls.buildScenes();
 		const host = $('rows');
 		for (const def of CONTROLS) {
 			if (def.kind === 'rate') {
@@ -240,6 +259,7 @@ const Controls = {
 	},
 
 	sync() {
+		Controls.sceneSelect.value = Settings.scene;
 		for (const k of Controls.knobs) {
 			if (k.p >= 0) {
 				k.row.classList.toggle('dim', !Controls.pairLive(k.def, k.p));

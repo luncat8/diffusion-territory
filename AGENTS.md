@@ -60,13 +60,14 @@ getObj().data().action()
 - keep this map updated when ownership changes:
 	main.js — owns boot/wiring only. edit for load order, boot, wiring.
 	settings.js — owns rule values and reaction mode list. edit for defaults.
+	presets.js — owns reproducible visual test scenes and their simulation settings. edit for scene layouts and starting conditions.
 	field.js — owns planar Q12.12 grid, pair tables/metrics, analysis, and caps. edit for storage, cap formula.
 	source.js — owns pigment painting, local production eligibility and shared-supply growth. edit for paint/seed/production rules.
 	gas.js — owns staggered gas dynamics, per-pair transport, depletion. edit for gas physics.
 	react.js — owns per-pair reaction modes (mutual/majority/convert/absorb) and pair scoring. edit for reaction laws.
 	tick.js — owns step order. edit for phase order.
 	view.js — owns canvas, cursor readout, source marks, player & pair stats. edit for color/UI of the map.
-	controls.js — owns panel widgets, pair toggles, reaction mode/dir controls. edit for sliders and buttons.
+	controls.js — owns panel widgets, pair toggles, reaction mode/dir controls, and scene selection. edit for sliders and buttons.
 	loop.js — owns pacing and stats cadence. edit for frame loop.
 	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
 	prototype/ — archived diffusion + Brownian + multigrid V-cycle prototype.

@@ -10,7 +10,7 @@ const Main = {
 		View.init($('canv'), $('tip'));
 		Controls.build();
 		Main.wire();
-		Main.reset();
+		Main.loadScene(Settings.scene);
 		Loop.start();
 	},
 
@@ -32,13 +32,16 @@ const Main = {
 		View.stats($('stats'));
 	},
 
+	loadScene(index) {
+		Presets.apply(Settings, index);
+		Main.reset();
+	},
+
 	reset() {
 		Field.reset();
 		Gas.reset();
 		Loop.frame = 0;
-		Source.seed(64, 64, 0);
-		Source.seed(20, 100, 1);
-		Source.seed(107, 20, 2);
+		Presets.seed(Settings.scene);
 		Field.analyze();
 		Field.caps(Settings.capBase, Settings.capTerritory, Settings.maxMass);
 		Source.prepare(Settings);

@@ -4,6 +4,7 @@
 const REACT_MODES = ['mutual', 'majority', 'convert', 'absorb'];
 
 const Settings = {
+	scene: 0,
 	gasSpeed: 65,
 	gasDamping: 15,
 	depletion: 0,
