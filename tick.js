@@ -3,6 +3,7 @@
 
 const Tick = {
 	run(s) {
+		Rivals.step(s);
 		Field.analyze();
 		Field.caps(s.capBase, s.capTerritory, s.maxMass);
 		const n = Math.max(1, Math.min(2, s.substeps | 0));

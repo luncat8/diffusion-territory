@@ -30,6 +30,7 @@ const Settings = {
 	brush: 1,
 	showSources: 0,
 	holdTarget: 20,
+	rivalPressure: 0,
 };
 
 if (typeof module !== 'undefined') module.exports = { Settings, REACT_MODES };

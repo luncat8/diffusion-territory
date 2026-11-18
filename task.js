@@ -17,6 +17,7 @@ const Task = {
 		Task.defaults(s, scene);
 		s.paint = paint;
 		s.holdTarget = target;
+		s.rivalPressure = 1;
 	},
 
 	roll(n) {

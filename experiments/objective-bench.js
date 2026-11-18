@@ -1,13 +1,14 @@
-// owns: objective measurement — hold outcome sensitivity to pressure, production, mixing, reaction, color, solution
+// owns: objective measurement — hold outcome sensitivity to pressure, production, mixing, reaction, rivals, color, solution
 // edit for: axes, levels, run length, or metric keys
 
 const sim = require('./load')();
-const { Settings, Field, Gas, Source, Objective, Presets, SCENES, Tick, Solution } = sim;
+const { Settings, Field, Gas, Source, Objective, Presets, SCENES, Tick, Rivals, Solution } = sim;
 
 const FRAMES = +(process.argv[2] || 360);
 const ONLY = process.argv[3] || '';
 const PATCH_AT = 60;
 const TARGET_S = 3;
+const RIVAL_TARGET_S = 20;
 const PLAYER = 0;
 const SENSITIVE_S = 1;
 const SENSITIVE_PCT = 5;
@@ -16,14 +17,24 @@ const CLAIM_R = 8;
 Field.init(128, 128);
 Gas.init(Field.w, Field.h);
 Objective.init(Field.w, Field.h);
+Rivals.init(Settings);
 
 // the solution axis applies the suggested patch mid-attempt, so its spread is the gain the button buys
 const PATCH = { patch: 1 };
 
 const AXES = [
 	['pressure', [['low', { gasSpeed: 20 }], ['high', { gasSpeed: 90 }]]],
+	['rival-pressure', [['off', { rivalPressure: 0 }], ['on', { rivalPressure: 1 }]]],
+	['pressure-with-rivals', [
+		['low', { rivalPressure: 1, gasSpeed: 20 }],
+		['high', { rivalPressure: 1, gasSpeed: 90 }],
+	]],
 	['production', [['off', { sourceRate: 0 }], ['high', { sourceRate: 16 }]]],
 	['mixing', [['closed', { mixMask: 0 }], ['open', { mixMask: 7, mixRate: [60, 60, 60] }]]],
+	['rival-mixing', [
+		['closed', { rivalPressure: 1, mixMask: 0, reactMask: 0 }],
+		['open', { rivalPressure: 1, mixMask: 7, mixRate: [60, 60, 60], reactMask: 0 }],
+	]],
 	['reaction', [
 		['off', { mixMask: 7, mixRate: [60, 60, 60], reactMask: 0, reactRate: [0, 0, 0] }],
 		['high', { mixMask: 7, mixRate: [60, 60, 60], reactMask: 7, reactRate: [20, 20, 20] }],
@@ -51,7 +62,7 @@ function setup(scene, over, player) {
 	Presets.apply(Settings, scene);
 	if (over && over !== PATCH) Presets.copyRules(Settings, over);
 	Settings.paint = player;
-	Settings.holdTarget = TARGET_S;
+	Settings.holdTarget = over && over.rivalPressure !== undefined ? RIVAL_TARGET_S : TARGET_S;
 	Field.reset();
 	Gas.reset();
 	Presets.seed(scene);
@@ -60,6 +71,7 @@ function setup(scene, over, player) {
 	Field.caps(Settings.capBase, Settings.capTerritory, Settings.maxMass);
 	Source.prepare(Settings);
 	Objective.reset(Settings);
+	Rivals.reset(Settings);
 	Solution.last = null;
 }
 

@@ -274,6 +274,7 @@ input[type=range] {
 }
 
 .hud-task:hover { background: #2a2a36; }
+.hud-task.hud-rivals.on { color: #fc6; border-color: #6d5320; background: #302a1b; }
 
 .hud-task-name {
 	color: var(--dim);

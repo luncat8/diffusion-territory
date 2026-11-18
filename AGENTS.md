@@ -66,14 +66,14 @@ getObj().data().action()
 	gas.js — owns staggered gas dynamics, per-pair transport, depletion. edit for gas physics.
 	react.js — owns per-pair reaction modes (mutual/majority/convert/absorb) and pair scoring. edit for reaction laws.
 	tick.js — owns step order and objective sampling. edit for phase order.
+	rivals.js — owns two deterministic pressure sources near the objective ring. edit for source rate, footprint, or placement.
 	view.js — owns canvas, cursor readout, source marks, objective ring, player & pair stats. edit for color/UI of the map.
 	controls.js — owns panel widgets, focus widgets, pair toggles, reaction mode/dir controls, scene selection, and the solution highlight. edit for sliders and buttons.
 	solution.js — owns the suggested objective setup, its explanation plan, and the revert snapshot. edit for suggestion values, when a rule fires, or wording.
 	task.js — owns capture-and-hold task variants and default GUI restoration. edit for scene/pigment/target rolls or default reset scope.
 	url-settings.js — owns shareable URL persistence for GUI settings. edit for URL encoding and validation.
 	loop.js — owns pacing, stats cadence, and HUD cadence. edit for frame loop.
-	experiments/ — node checks, dom smoke, gas bench, snapshots; never loaded by the page.
-	prototype/ — archived diffusion + Brownian + multigrid V-cycle prototype.
+	experiments/ — node checks, dom smoke, gas bench, snapshots; prototype/ — archived diffusion + Brownian + multigrid V-cycle. neither loads in the page.
 - new code goes to its owner, never appended "because the file is already there". no owner exists -> new file + header + map entry.
 - file > ~500 lines = defect. split by feature within the same plan.
 - moves are pure moves: contiguous ranges, snap to enclosing declarations, no behavior change.
@@ -140,9 +140,9 @@ getObj().data().action()
 
 ## current workstream
 
-plans 0.2.0–0.2.3, 0.3.1, 0.4.0 and 0.4.1 (archive/); constraints: planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
-	after sim change: checks.js; after UI/boot change: dom-smoke.js.
-latest: 0.4.1 solution button: one-click suggested setup, changed-control highlight, explanation panel, revert, wider objective column, prominent new-task/reset-GUI actions and pair-mask activation; the focus block covers every key a suggestion can write; 0.4.0 capture-and-hold ring, objective column with focus controls and attempt statistics, objective checks and scene bench; 0.3.1 local production, 5% control threshold, smooth fractional reactions, directional gradient response; `npm run checks` includes concentration, objective and solution regressions.
+plans 0.2.0–0.2.3, 0.3.1, 0.4.0–0.4.2 (archive/); constraints: planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
+	after sim change: checks.js + rival-checks.js; after UI/boot change: dom-smoke.js.
+latest: 0.4.2 deterministic rival pressure sources in the ring, task toggle/URL and continuous-score measurement; 0.4.1 solution button, changed-control highlight, explanation/revert, task actions and pair-mask activation; 0.4.0 capture-and-hold ring/HUD and scene bench; 0.3.1 local production, 5% control threshold, smooth reactions, directional gradient response; `npm run checks` includes concentration, objective, solution and rival regressions.
 
 ## housekeeping
 

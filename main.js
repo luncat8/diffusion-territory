@@ -10,6 +10,7 @@ const Main = {
 		Objective.init(Field.w, Field.h);
 		View.init($('canv'), $('tip'));
 		UrlSettings.load();
+		Rivals.init(Settings);
 		Controls.build();
 		HUD.init($('hud'));
 		Main.wire();
@@ -55,6 +56,7 @@ const Main = {
 		Source.prepare(Settings);
 		Field.analyze();
 		Objective.reset(Settings);
+		Rivals.reset(Settings);
 		View.draw();
 		View.stats($('stats'));
 		Controls.sync();

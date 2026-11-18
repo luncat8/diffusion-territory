@@ -49,7 +49,7 @@ function check(name, ok, value) {
 	console.log(`check=${name} ok=${ok ? 1 : 0} value=${value}`);
 }
 
-check('boot_scripts', scripts.length === 16, scripts.join(','));
+check('boot_scripts', scripts.length === 17, scripts.join(','));
 check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
 check('scene_presets', doc.querySelectorAll('#scene-select option').length === 6 &&
 	doc.getElementById('scene-select').value === '0', `scene=${doc.getElementById('scene-select').value}`);
@@ -69,10 +69,12 @@ check('step_runs', scope('Field').total[0] > 0, `mass_r=${Math.round(scope('Fiel
 
 const hud = doc.getElementById('hud');
 check('hud_visible', !hud.hidden && !!hud.querySelector('.hud-head'), 'hud built');
-check('hud_task_actions', ['hud-new-task', 'hud-reset-gui'].every(id => {
+check('hud_task_actions', ['hud-new-task', 'hud-reset-gui', 'hud-rivals'].every(id => {
 	const button = doc.getElementById(id);
 	return button && !button.hidden && button.closest('.hud-main') !== null;
 }) && !!hud.querySelector('.hud-task-name'), 'top-of-panel new task + reset GUI');
+check('rival_pressure_defaults_off', scope('Settings').rivalPressure === 0 &&
+	doc.getElementById('hud-rivals').textContent === 'rivals off', 'off in GUI defaults');
 check('objective_zone', scope('Objective').area > 1700 && scope('Objective').player === 0,
 	`area=${scope('Objective').area} player=${scope('Objective').player}`);
 check('hud_spot_controls', ['spot-sourceRate', 'spot-sourceMode', 'spot-gasSpeed', 'spot-gasDamping', 'spot-brush',
@@ -327,16 +329,18 @@ scope('Task').roll = taskRoll;
 const taskSettings = scope('Settings');
 const taskUrl = new URL(window.location.href);
 check('new_task_generates_clean_task', taskSettings.scene === 5 && taskSettings.paint === 2 &&
-	taskSettings.holdTarget === 60 && taskSettings.brush === 1 && taskSettings.paused === 0 &&
+	taskSettings.holdTarget === 60 && taskSettings.rivalPressure === 1 && taskSettings.brush === 1 && taskSettings.paused === 0 &&
 	taskSettings.gasSpeed === 50 && taskSettings.sourceRate === 9 && taskSettings.reactMode === 1 &&
 	scope('Objective').player === 2 && scope('Objective').target === 3600 && scope('Loop').frame === 0 &&
 	scope('Solution').last === null && doc.getElementById('hud-revert').hidden &&
 	doc.getElementById('scene-select').value === '5' && doc.getElementById('hud-target').value === '60' &&
+	doc.getElementById('hud-rivals').textContent === 'rivals on' &&
 	hud.querySelector('.hud-task-name').textContent.includes('Growing colonies') &&
 	hud.querySelector('.hud-task-name').textContent.includes('B pigment · hold 60 s') &&
 	!doc.getElementById('hud-why').hidden && doc.getElementById('hud-why').textContent.includes('new task') &&
 	taskUrl.searchParams.get('dt.scene') === '5' && taskUrl.searchParams.get('dt.paint') === '2' &&
-	taskUrl.searchParams.get('dt.holdTarget') === '60' && !taskUrl.searchParams.has('dt.gasSpeed'),
+	taskUrl.searchParams.get('dt.holdTarget') === '60' && taskUrl.searchParams.get('dt.rivalPressure') === '1' &&
+	!taskUrl.searchParams.has('dt.gasSpeed'),
 	`scene=${taskSettings.scene} paint=${taskSettings.paint} target=${taskSettings.holdTarget} url=${taskUrl.search}`);
 
 doc.getElementById('hud-solve').click();
@@ -348,16 +352,30 @@ doc.getElementById('hud-reset-gui').click();
 const guiUrl = new URL(window.location.href);
 check('reset_gui_restores_scene_defaults', solvedRows > 0 && doc.querySelectorAll('.solved').length === 0 &&
 	taskSettings.scene === 5 && taskSettings.paint === 0 && taskSettings.holdTarget === 20 &&
-	taskSettings.brush === 1 && taskSettings.paused === 0 && taskSettings.gasSpeed === 50 &&
+	taskSettings.rivalPressure === 0 && taskSettings.brush === 1 && taskSettings.paused === 0 && taskSettings.gasSpeed === 50 &&
 	taskSettings.sourceRate === 9 && taskSettings.reactMode === 1 && scope('Solution').last === null &&
 	scope('Objective').player === 0 && scope('Objective').target === 1200 && scope('Loop').frame === 0 &&
 	doc.getElementById('hud-revert').hidden && doc.getElementById('hud-target').value === '20' &&
+	doc.getElementById('hud-rivals').textContent === 'rivals off' &&
 	doc.getElementById('ctrl-gasSpeed').value === '50' &&
 	doc.getElementById('hud-why').textContent.includes('GUI defaults') &&
 	guiUrl.searchParams.get('dt.scene') === '5' && !guiUrl.searchParams.has('dt.paint') &&
 	!guiUrl.searchParams.has('dt.holdTarget') && !guiUrl.searchParams.has('dt.gasSpeed') &&
-	!guiUrl.searchParams.has('dt.reactMode'),
+	!guiUrl.searchParams.has('dt.reactMode') && !guiUrl.searchParams.has('dt.rivalPressure'),
 	`rows=${solvedRows} paint=${taskSettings.paint} target=${taskSettings.holdTarget} url=${guiUrl.search}`);
+
+doc.getElementById('hud-rivals').click();
+const rivalryUrl = new URL(window.location.href);
+check('rival_toggle_on', taskSettings.rivalPressure === 1 && scope('Objective').elapsed === 0 &&
+	doc.getElementById('hud-rivals').textContent === 'rivals on' && rivalryUrl.searchParams.get('dt.rivalPressure') === '1',
+	`mode=${taskSettings.rivalPressure} url=${rivalryUrl.search}`);
+const rivalryReload = new JSDOM(html, { url: rivalryUrl.href, runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
+check('rival_pressure_url_roundtrip', rivalryReload.window.eval('Settings.rivalPressure === 1'), rivalryUrl.search);
+rivalryReload.window.close();
+doc.getElementById('hud-rivals').click();
+check('rival_toggle_off', taskSettings.rivalPressure === 0 &&
+	doc.getElementById('hud-rivals').textContent === 'rivals off' &&
+	!new URL(window.location.href).searchParams.has('dt.rivalPressure'), `mode=${taskSettings.rivalPressure}`);
 
 setTimeout(() => {
 	check('raf_loop', scope('Loop').frame > 0, `frames=${scope('Loop').frame}`);

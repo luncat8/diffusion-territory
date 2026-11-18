@@ -26,6 +26,7 @@ const HUD = {
 	whyChanged: null,
 	newTaskBtn: null,
 	resetGuiBtn: null,
+	rivalsBtn: null,
 	taskLine: null,
 
 	init(host) {
@@ -83,7 +84,13 @@ const HUD = {
 		HUD.resetGuiBtn.id = 'hud-reset-gui';
 		HUD.resetGuiBtn.title = 'keep this scene; restore default sliders, R pigment, brush and 20 s target';
 		HUD.resetGuiBtn.addEventListener('click', HUD.resetGui);
-		taskRow.append(HUD.newTaskBtn, HUD.resetGuiBtn);
+		HUD.rivalsBtn = HUD.el('button', 'hud-task hud-rivals', 'rivals off');
+		HUD.rivalsBtn.type = 'button';
+		HUD.rivalsBtn.id = 'hud-rivals';
+		HUD.rivalsBtn.title = 'enable two deterministic rival pressure sources near the ring';
+		HUD.rivalsBtn.setAttribute('aria-pressed', 'false');
+		HUD.rivalsBtn.addEventListener('click', HUD.toggleRivals);
+		taskRow.append(HUD.rivalsBtn, HUD.newTaskBtn, HUD.resetGuiBtn);
 		main.append(taskRow);
 		HUD.taskLine = HUD.el('div', 'hud-task-name', '');
 		main.append(HUD.taskLine);
@@ -199,12 +206,20 @@ const HUD = {
 
 	newTask() {
 		Task.generate(Settings);
-		HUD.startTask('new task', 'scene, pigment and target are new; every setting is back to its scene default');
+		HUD.startTask('new task', 'scene, pigment and target are new; rival pressure is on and every rule is back to its scene default');
 	},
 
 	resetGui() {
 		Task.defaults(Settings);
-		HUD.startTask('GUI defaults', 'the current scene is kept; every setting is back to its default');
+		HUD.startTask('GUI defaults', 'the current scene is kept; rival pressure is off and every rule is back to its default');
+	},
+
+	toggleRivals() {
+		Settings.rivalPressure = Settings.rivalPressure ? 0 : 1;
+		Rivals.reset(Settings);
+		Objective.reset(Settings);
+		Controls.refresh();
+		HUD.refresh();
 	},
 
 	startTask(headline, note) {
@@ -298,6 +313,7 @@ const HUD = {
 		if (p !== Settings.paint) {
 			Controls.pick(p);
 			Objective.reset(Settings);
+			Rivals.reset(Settings);
 			if (Solution.active()) HUD.solve();
 		}
 		HUD.refresh();
@@ -329,6 +345,7 @@ const HUD = {
 		Settings.holdTarget = +HUD.target.value;
 		UrlSettings.save();
 		Objective.reset(Settings);
+		Rivals.reset(Settings);
 		HUD.refresh();
 	},
 
@@ -355,6 +372,11 @@ const HUD = {
 		if (!HUD.host || !Objective.area) return;
 		if (+HUD.target.value !== Settings.holdTarget) HUD.syncTarget();
 		HUD.taskLine.textContent = HUD.taskText();
+		const pressure = !!Settings.rivalPressure;
+		HUD.rivalsBtn.textContent = pressure ? 'rivals on' : 'rivals off';
+		HUD.rivalsBtn.title = pressure ? 'disable these sources; existing pigment and scene production continue' : 'enable two deterministic rival pressure sources near the ring';
+		HUD.rivalsBtn.setAttribute('aria-pressed', pressure ? 'true' : 'false');
+		HUD.rivalsBtn.classList.toggle('on', pressure);
 		const o = Objective;
 		const p = o.player < 0 ? Settings.paint : o.player;
 		const rival = HUD.rival();
