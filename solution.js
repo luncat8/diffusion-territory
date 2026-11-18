@@ -6,12 +6,14 @@ const SOLUTION_MIX = 55;
 const SOLUTION_REACT = 12;
 const SOLUTION_BRUSH = 2;
 const SOLUTION_MODE = 3;
+const SOLUTION_PRESSURE = 90;
+const SOLUTION_VISCOSITY = 30;
 
 const Solution = {
 	last: null,
 
 	// every key here must have a widget in the objective focus block; solution-checks asserts the coverage
-	keys: ['sourceRate', 'sourceMode', 'mixRate', 'reactRate', 'reactDir', 'reactMode', 'reactExponent', 'brush'],
+	keys: ['sourceRate', 'sourceMode', 'mixRate', 'reactRate', 'reactDir', 'reactMode', 'reactExponent', 'brush', 'gasSpeed', 'gasDamping'],
 
 	clear() {
 		this.last = null;
@@ -48,18 +50,31 @@ const Solution = {
 			plan.notes.push('the ring is held at the target; no setting has to change');
 			return plan;
 		}
+		Solution.growth(plan, s, o, player);
+		Solution.pressure(plan, s, o, player);
+		Solution.explain(plan, o, player);
+		return plan;
+	},
+
+	growth(plan, s, o, player) {
 		Solution.add(plan, s, 'sourceRate', -1, Math.max(s.sourceRate, SOLUTION_PROD));
 		Solution.add(plan, s, 'sourceMode', -1, 1);
 		for (const p of Solution.pairs(player)) {
-			Solution.addPair(plan, s, 'mixRate', p, Math.max(s.mixRate[p], SOLUTION_MIX), 'mixMask');
 			Solution.addPair(plan, s, 'reactRate', p, Math.max(s.reactRate[p], SOLUTION_REACT), 'reactMask');
 			Solution.add(plan, s, 'reactDir', p, Solution.dirFor(p, player));
 		}
 		Solution.add(plan, s, 'reactMode', -1, SOLUTION_MODE);
 		Solution.add(plan, s, 'reactExponent', -1, 1);
 		if (o.mass[player] < o.area * FP_ONE) Solution.add(plan, s, 'brush', -1, Math.max(s.brush, SOLUTION_BRUSH));
-		Solution.explain(plan, o, player);
-		return plan;
+	},
+
+	// second rule set: pressure carries pigment to the ring, permeability lets it enter foreign cells
+	pressure(plan, s, o, player) {
+		Solution.add(plan, s, 'gasSpeed', -1, Math.max(s.gasSpeed, SOLUTION_PRESSURE));
+		Solution.add(plan, s, 'gasDamping', -1, Math.max(s.gasDamping, SOLUTION_VISCOSITY));
+		for (const p of Solution.pairs(player)) {
+			Solution.addPair(plan, s, 'mixRate', p, Math.max(s.mixRate[p], SOLUTION_MIX), 'mixMask');
+		}
 	},
 
 	add(plan, s, key, index, to) {
@@ -79,13 +94,18 @@ const Solution = {
 	explain(plan, o, player) {
 		if (!plan.edits.length) {
 			plan.headline = 'suggested setup already in place';
-			plan.notes.push('growth and one-way absorb are set; the ring is yours to paint');
+			plan.notes.push('growth, absorb, pressure and permeability are set; the ring is yours to paint');
 			return;
 		}
 		plan.headline = o.control ? 'keep the ring' : 'take the ring';
 		plan.notes.push('absorb: your colour takes the rival share of every cell you both occupy, never the reverse');
-		plan.notes.push('mixing opens both rival pairs so the reaction reaches cells beyond the front');
 		plan.notes.push('production on the low-pigment rule refills every cell that holds 5% of your colour');
+		if (plan.edits.some(e => e.key === 'gasSpeed' || e.key === 'gasDamping')) {
+			plan.notes.push('pressure: faster gas carries pigment to the ring, viscosity lets it drift in instead of bouncing out');
+		}
+		if (plan.edits.some(e => e.key === 'mixRate')) {
+			plan.notes.push('permeability: mixing opens both rival pairs so pigment and reaction reach cells beyond the front');
+		}
 		if (plan.edits.some(e => e.enable)) plan.notes.push('rival pair switches are on, so their rates can reach the ring');
 		if (o.mass[player] < o.area * FP_ONE) plan.notes.push('paint inside the ring first: growth and absorb need your pigment there');
 	},
@@ -130,5 +150,5 @@ const Solution = {
 };
 
 if (typeof module !== 'undefined') {
-	module.exports = { Solution, SOLUTION_PROD, SOLUTION_MIX, SOLUTION_REACT, SOLUTION_BRUSH, SOLUTION_MODE };
+	module.exports = { Solution, SOLUTION_PROD, SOLUTION_MIX, SOLUTION_REACT, SOLUTION_BRUSH, SOLUTION_MODE, SOLUTION_PRESSURE, SOLUTION_VISCOSITY };
 }

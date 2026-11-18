@@ -108,26 +108,53 @@ check('hud_hold_progress', scope('Objective').control === 1 && doc.getElementByI
 	`status=${doc.getElementById('hud-status').textContent} width=${doc.getElementById('hud-fill').style.width}`);
 
 const solvedSettings = scope('Settings');
+const previewBtn = doc.getElementById('hud-preview');
+check('preview_button_exists', !!previewBtn && previewBtn.id === 'hud-preview', 'press-to-preview');
+const solveBtn = doc.getElementById('hud-solve');
+const beforePreview = { sourceRate: solvedSettings.sourceRate, gasSpeed: solvedSettings.gasSpeed, reactMode: solvedSettings.reactMode };
+const beforeUrl = window.location.search;
+solveBtn.dispatchEvent(new window.MouseEvent('mouseenter', { bubbles: true }));
+const previewSpot = doc.getElementById('spot-sourceRate').closest('.spot-row');
+const previewSlider = doc.getElementById('spot-sourceRate');
+check('preview_on_hover_shows_positions_without_change', solvedSettings.sourceRate === beforePreview.sourceRate &&
+	solvedSettings.gasSpeed === beforePreview.gasSpeed && solvedSettings.reactMode === beforePreview.reactMode &&
+	previewSpot.classList.contains('preview') && previewSlider.value === '16' &&
+	previewSpot.querySelector('output').textContent.includes('→') && window.location.search === beforeUrl &&
+	doc.getElementById('hud-why').textContent.includes('preview'),
+	`rate=${solvedSettings.sourceRate} slider=${previewSlider.value} why=${doc.getElementById('hud-why').textContent.slice(0, 40)}`);
+solveBtn.dispatchEvent(new window.MouseEvent('mouseleave', { bubbles: true }));
+check('preview_off_restores_positions', !previewSpot.classList.contains('preview') && previewSlider.value === String(beforePreview.sourceRate) &&
+	solvedSettings.sourceRate === beforePreview.sourceRate,
+	`slider=${previewSlider.value} rate=${solvedSettings.sourceRate}`);
+previewBtn.dispatchEvent(new window.Event('pointerdown', { bubbles: true }));
+check('preview_on_press', previewSpot.classList.contains('preview') && solvedSettings.sourceRate === beforePreview.sourceRate,
+	`preview=${previewSpot.className}`);
+previewBtn.dispatchEvent(new window.Event('pointerup', { bubbles: true }));
+check('preview_off_on_release', !previewSpot.classList.contains('preview') && previewSlider.value === String(beforePreview.sourceRate),
+	`slider=${previewSlider.value}`);
+
 doc.getElementById('hud-solve').click();
 check('solve_applies_suggestion', solvedSettings.sourceRate === 16 && solvedSettings.sourceMode === 1 &&
 	solvedSettings.reactMode === 3 && solvedSettings.reactExponent === 1 && solvedSettings.mixMask === 3 &&
-	solvedSettings.reactMask === 3 && solvedSettings.reactDir[0] === 0 && solvedSettings.reactDir[1] === 0,
+	solvedSettings.reactMask === 3 && solvedSettings.reactDir[0] === 0 && solvedSettings.reactDir[1] === 0 &&
+	solvedSettings.gasSpeed === 90 && solvedSettings.gasDamping === 30,
 	`rate=${solvedSettings.sourceRate} mode=${solvedSettings.reactMode} mix=${solvedSettings.mixMask} ` +
-	`react=${solvedSettings.reactMask} dir=${solvedSettings.reactDir.join('/')}`);
+	`react=${solvedSettings.reactMask} dir=${solvedSettings.reactDir.join('/')} speed=${solvedSettings.gasSpeed}`);
 const mixSpot = doc.getElementById('spot-mix-0').closest('.spot-row');
 check('solve_marks_changed_rows', mixSpot.classList.contains('solved') &&
 	mixSpot.querySelector('output').textContent.includes('→'),
 	`${mixSpot.className} ${mixSpot.querySelector('output').textContent}`);
 const why = doc.getElementById('hud-why');
 check('solve_explains', !why.hidden && why.textContent.includes('absorb') && why.textContent.includes('production') &&
+	why.textContent.includes('pressure') && why.textContent.includes('permeability') &&
 	why.textContent.includes('mode mutual → absorb'), why.textContent.slice(0, 80));
 check('solve_saved_to_url', new URL(window.location.href).searchParams.get('dt.reactMode') === '3' &&
 	new URL(window.location.href).searchParams.get('dt.sourceRate') === '16', window.location.search);
 doc.getElementById('hud-revert').click();
 check('revert_restores_settings', solvedSettings.sourceRate === 5 && solvedSettings.sourceMode === 0 &&
 	solvedSettings.reactMode === 0 && solvedSettings.mixMask === 0 && solvedSettings.reactMask === 0 &&
-	solvedSettings.reactDir[1] === 1,
-	`rate=${solvedSettings.sourceRate} mode=${solvedSettings.reactMode} mix=${solvedSettings.mixMask}`);
+	solvedSettings.reactDir[1] === 1 && solvedSettings.gasSpeed === 65 && solvedSettings.gasDamping === 15,
+	`rate=${solvedSettings.sourceRate} mode=${solvedSettings.reactMode} mix=${solvedSettings.mixMask} speed=${solvedSettings.gasSpeed}`);
 check('revert_hides_url_params', !new URL(window.location.href).searchParams.has('dt.reactMode'), window.location.search);
 
 doc.getElementById('hud-solve').click();
@@ -135,12 +162,13 @@ const sceneSwitch = doc.getElementById('scene-select');
 sceneSwitch.value = '2';
 sceneSwitch.dispatchEvent(new window.Event('change', { bubbles: true }));
 check('solution_follows_scene', solvedSettings.scene === 2 && solvedSettings.reactMode === 3 &&
-	solvedSettings.sourceMode === 1 && solvedSettings.sourceRate === 16 && !why.hidden,
-	`scene=${solvedSettings.scene} mode=${solvedSettings.reactMode} rate=${solvedSettings.sourceRate}`);
+	solvedSettings.sourceMode === 1 && solvedSettings.sourceRate === 16 && solvedSettings.gasSpeed === 90 && !why.hidden,
+	`scene=${solvedSettings.scene} mode=${solvedSettings.reactMode} rate=${solvedSettings.sourceRate} speed=${solvedSettings.gasSpeed}`);
 doc.getElementById('hud-revert').click();
 check('revert_restores_scene_rules', solvedSettings.sourceRate === 0 && solvedSettings.reactMode === 2 &&
-	solvedSettings.reactRate[0] === 14 && solvedSettings.mixRate[0] === 75,
-	`rate=${solvedSettings.sourceRate} mode=${solvedSettings.reactMode} react=${solvedSettings.reactRate[0]}`);
+	solvedSettings.reactRate[0] === 14 && solvedSettings.mixRate[0] === 75 &&
+	solvedSettings.gasSpeed === 60 && solvedSettings.gasDamping === 28,
+	`rate=${solvedSettings.sourceRate} mode=${solvedSettings.reactMode} react=${solvedSettings.reactRate[0]} speed=${solvedSettings.gasSpeed}`);
 sceneSwitch.value = '0';
 sceneSwitch.dispatchEvent(new window.Event('change', { bubbles: true }));
 

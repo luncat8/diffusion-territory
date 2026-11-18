@@ -74,6 +74,7 @@ function measure(scene, over, player = PLAYER) {
 		hold: Objective.best / 60,
 		control: Objective.controlFrames / 60,
 		share: Objective.peak[player],
+		score: Objective.score / 60,
 		flips: Objective.flips,
 		captures: Objective.captures,
 	};
@@ -81,7 +82,7 @@ function measure(scene, over, player = PLAYER) {
 
 function log(scene, axis, level, run) {
 	console.log(`scene=${scene} axis=${axis} level=${level} hold_s=${run.hold.toFixed(1)} ` +
-		`control_s=${run.control.toFixed(1)} share=${run.share.toFixed(1)} flips=${run.flips} captures=${run.captures}`);
+		`control_s=${run.control.toFixed(1)} share=${run.share.toFixed(1)} score_s=${run.score.toFixed(1)} flips=${run.flips} captures=${run.captures}`);
 }
 
 function mean(values) {
@@ -99,8 +100,8 @@ function spread(values) {
 	return max - min;
 }
 
-function flag(controlSpread, shareSpread) {
-	return controlSpread >= SENSITIVE_S || shareSpread >= SENSITIVE_PCT ? 1 : 0;
+function flag(controlSpread, shareSpread, scoreSpread) {
+	return controlSpread >= SENSITIVE_S || shareSpread >= SENSITIVE_PCT || scoreSpread >= SENSITIVE_S ? 1 : 0;
 }
 
 const sceneCount = SCENES.length;
@@ -109,52 +110,60 @@ for (const [axis, levels] of AXES) {
 	const axisHolds = [];
 	const axisControls = [];
 	const axisShares = [];
+	const axisScores = [];
 	for (let scene = 0; scene < sceneCount; scene++) {
 		const holds = [];
 		const controls = [];
 		const shares = [];
+		const scores = [];
 		for (const [level, over] of levels) {
 			const run = measure(scene, over);
 			log(scene, axis, level, run);
 			holds.push(run.hold);
 			controls.push(run.control);
 			shares.push(run.share);
+			scores.push(run.score);
 		}
 		axisHolds.push(spread(holds));
 		axisControls.push(spread(controls));
 		axisShares.push(spread(shares));
+		axisScores.push(spread(scores));
 		console.log(`scene=${scene} axis=${axis} hold_spread_s=${spread(holds).toFixed(1)} ` +
-			`control_spread_s=${spread(controls).toFixed(1)} share_spread_pp=${spread(shares).toFixed(1)} ` +
-			`sensitive=${flag(spread(controls), spread(shares))}`);
+			`control_spread_s=${spread(controls).toFixed(1)} share_spread_pp=${spread(shares).toFixed(1)} score_spread_s=${spread(scores).toFixed(1)} ` +
+			`sensitive=${flag(spread(controls), spread(shares), spread(scores))}`);
 	}
 	console.log(`axis=${axis} scenes=${sceneCount} mean_hold_spread_s=${mean(axisHolds).toFixed(1)} ` +
-		`mean_control_spread_s=${mean(axisControls).toFixed(1)} mean_share_spread_pp=${mean(axisShares).toFixed(1)} ` +
-		`sensitive=${flag(mean(axisControls), mean(axisShares))}`);
+		`mean_control_spread_s=${mean(axisControls).toFixed(1)} mean_share_spread_pp=${mean(axisShares).toFixed(1)} mean_score_spread_s=${mean(axisScores).toFixed(1)} ` +
+		`sensitive=${flag(mean(axisControls), mean(axisShares), mean(axisScores))}`);
 }
 
 const playerHolds = [];
 const playerControls = [];
 const playerShares = [];
+const playerScores = [];
 for (let scene = 0; scene < sceneCount && (!ONLY || ONLY === 'player'); scene++) {
 	const holds = [];
 	const controls = [];
 	const shares = [];
+	const scores = [];
 	for (let player = 0; player < 3; player++) {
 		const run = measure(scene, null, player);
 		log(scene, 'player', player, run);
 		holds.push(run.hold);
 		controls.push(run.control);
 		shares.push(run.share);
+		scores.push(run.score);
 	}
 	playerHolds.push(spread(holds));
 	playerControls.push(spread(controls));
 	playerShares.push(spread(shares));
+	playerScores.push(spread(scores));
 	console.log(`scene=${scene} axis=player hold_spread_s=${spread(holds).toFixed(1)} ` +
-		`control_spread_s=${spread(controls).toFixed(1)} share_spread_pp=${spread(shares).toFixed(1)} ` +
-		`sensitive=${flag(spread(controls), spread(shares))}`);
+		`control_spread_s=${spread(controls).toFixed(1)} share_spread_pp=${spread(shares).toFixed(1)} score_spread_s=${spread(scores).toFixed(1)} ` +
+		`sensitive=${flag(spread(controls), spread(shares), spread(scores))}`);
 }
 if (!ONLY || ONLY === 'player') {
 	console.log(`axis=player scenes=${sceneCount} mean_hold_spread_s=${mean(playerHolds).toFixed(1)} ` +
-		`mean_control_spread_s=${mean(playerControls).toFixed(1)} mean_share_spread_pp=${mean(playerShares).toFixed(1)} ` +
-		`sensitive=${flag(mean(playerControls), mean(playerShares))}`);
+		`mean_control_spread_s=${mean(playerControls).toFixed(1)} mean_share_spread_pp=${mean(playerShares).toFixed(1)} mean_score_spread_s=${mean(playerScores).toFixed(1)} ` +
+		`sensitive=${flag(mean(playerControls), mean(playerShares), mean(playerScores))}`);
 }

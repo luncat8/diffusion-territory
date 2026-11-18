@@ -49,6 +49,8 @@ const Controls = {
 	paintDot: null,
 	sceneSelect: null,
 	flashTimer: 0,
+	previewing: false,
+	previewEdits: [],
 
 	buildScenes() {
 		const row = document.createElement('label');
@@ -315,6 +317,62 @@ const Controls = {
 		Controls.sync();
 	},
 
+	// preview shows where every slider would go without writing Settings; sync re-applies it until unpreview
+	preview(edits) {
+		Controls.previewing = true;
+		Controls.previewEdits = edits;
+		Controls.applyPreview();
+	},
+
+	applyPreview() {
+		if (!Controls.previewing) return;
+		for (const e of Controls.previewEdits) Controls.lightPreview(e);
+	},
+
+	lightPreview(e) {
+		for (const k of Controls.knobs) {
+			if (!Controls.knobHit(k, e)) continue;
+			k.row.classList.add('preview');
+			if (k.def.kind === 'rate' && (e.enable || e.to > 0)) k.row.classList.remove('dim');
+			k.val.textContent = Controls.changeValue(k, e);
+			k.input.value = e.to;
+		}
+		for (const t of Controls.toggles) {
+			if (e.enable && t.def.key === e.key && t.p === e.index) {
+				t.label.classList.add('preview');
+				t.node.checked = true;
+			}
+		}
+		for (const d of Controls.dirs) {
+			if (e.key === 'reactDir' && d.p === e.index) {
+				d.node.classList.add('preview');
+				d.node.hidden = false;
+				d.node.textContent = View.dirLabel(d.p, e.to);
+			}
+		}
+		if (e.key === 'reactMode') {
+			for (const m of Controls.modes) m.classList.toggle('preview', m.id === 'mode-' + REACT_MODES[e.to]);
+			if (e.to === 3) for (const d of Controls.dirs) d.node.hidden = false;
+		}
+		for (const s of Controls.selects) {
+			if (s.def.key !== e.key) continue;
+			s.row.classList.add('preview');
+			s.node.value = e.to;
+		}
+	},
+
+	unpreview() {
+		if (!Controls.previewing) return;
+		Controls.previewing = false;
+		Controls.previewEdits = [];
+		for (const k of Controls.knobs) k.row.classList.remove('preview');
+		for (const t of Controls.toggles) t.label.classList.remove('preview');
+		for (const d of Controls.dirs) d.node.classList.remove('preview');
+		for (const m of Controls.modes) m.classList.remove('preview');
+		for (const s of Controls.selects) s.row.classList.remove('preview');
+		Controls.sync();
+	},
+
 	maskKey(def) {
 		return def.group === 'mix' ? 'mixMask' : 'reactMask';
 	},
@@ -324,6 +382,7 @@ const Controls = {
 	},
 
 	refresh() {
+		Controls.unpreview();
 		Controls.sync();
 		View.stats($('stats'));
 		UrlSettings.save();
@@ -442,5 +501,6 @@ const Controls = {
 		for (let p = 0; p < 3; p++) Controls.picks[p].classList.toggle('on', Settings.paint === p);
 		Controls.paintDot.textContent = 'paint pigment: left click · erase pigment: right click';
 		$('pause').textContent = Settings.paused ? 'resume' : 'pause';
+		Controls.applyPreview();
 	},
 };

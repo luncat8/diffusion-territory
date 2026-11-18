@@ -7,7 +7,7 @@ const vm = require('vm');
 const { Settings, Field, Gas, Objective, Tick, Solution, FP_ONE, HOLD_DONE } = require('./load')();
 
 const ROOT = path.join(__dirname, '..');
-const KEYS = ['sourceRate', 'sourceMode', 'mixMask', 'reactMask', 'mixRate', 'reactRate', 'reactMode', 'reactDir', 'reactExponent', 'brush'];
+const KEYS = ['sourceRate', 'sourceMode', 'mixMask', 'reactMask', 'mixRate', 'reactRate', 'reactMode', 'reactDir', 'reactExponent', 'brush', 'gasSpeed', 'gasDamping'];
 const BASE = {
 	paint: 0, sourceRate: 5, sourceMode: 0, mixMask: 0, mixRate: [50, 50, 50],
 	reactMask: 0, reactRate: [2, 2, 2], reactMode: 0, reactDir: [0, 1, 0], reactExponent: 1, brush: 1,
@@ -65,6 +65,22 @@ check('absorb_mode_and_dilution', modesOk, 'mode 3, exponent 1');
 const raised = fresh();
 Solution.apply(raised, state({}));
 check('production_raised', raised.sourceRate === 16 && raised.sourceMode === 1, `rate=${raised.sourceRate} rule=${raised.sourceMode}`);
+check('pressure_raised', raised.gasSpeed === 90 && raised.gasDamping === 30, `speed=${raised.gasSpeed} damping=${raised.gasDamping}`);
+Solution.last = null;
+
+const pure = fresh();
+const pureBefore = snapshot(pure);
+const purePlan = Solution.suggest(pure, state({}));
+check('suggest_does_not_mutate', snapshot(pure) === pureBefore && Solution.last === null && purePlan.edits.length > 0,
+	`edits=${purePlan.edits.length} keys=${purePlan.edits.map(e => e.key).join(',')}`);
+check('second_rule_set_explained', purePlan.notes.some(n => n.indexOf('pressure:') === 0) &&
+	purePlan.notes.some(n => n.indexOf('permeability:') === 0), purePlan.notes.join(' | '));
+
+const keptPressure = fresh({ gasSpeed: 100, gasDamping: 80 });
+Solution.apply(keptPressure, state({}));
+check('higher_pressure_kept', keptPressure.gasSpeed === 100 && keptPressure.gasDamping === 80,
+	`speed=${keptPressure.gasSpeed} damping=${keptPressure.gasDamping}`);
+Solution.last = null;
 
 const kept = fresh({ sourceRate: 40, mixRate: [90, 90, 90], reactRate: [30, 30, 30], reactExponent: 2 });
 const keptPlan = Solution.apply(kept, state({}));

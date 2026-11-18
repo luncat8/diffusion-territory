@@ -498,6 +498,22 @@ input[type=range] {
 .hud-solve:hover,
 .hud-revert:hover { background: #3a3120; }
 
+.hud-preview {
+	flex: 0 0 auto;
+	padding: 2px 8px;
+	font: inherit;
+	font-size: 10px;
+	cursor: pointer;
+	background: #20202a;
+	border: 1px solid var(--line);
+	color: var(--dim);
+	touch-action: none;
+	user-select: none;
+}
+
+.hud-preview:hover { background: #2a2a36; color: var(--text); }
+.hud-preview.on { background: #1e2a36; border-color: #4a6a88; color: #a8d0f0; }
+
 .hud-revert {
 	background: #20202a;
 	border-color: var(--line);
@@ -542,3 +558,18 @@ input[type=range] {
 	0%, 100% { background: transparent; }
 	50% { background: rgba(211, 161, 62, 0.16); }
 }
+
+.row.preview,
+.spot-row.preview {
+	outline: 1px dashed #4a90c8;
+	outline-offset: 1px;
+	border-radius: 2px;
+}
+
+.row.preview label,
+.spot-row.preview label { color: #a8d0f0; }
+.row.preview output { color: #a8d0f0; }
+.row.preview input[type=range] { accent-color: #4a90c8; }
+.row.checks label.preview { color: #a8d0f0; }
+.mode.preview,
+.dir.preview { border-color: #4a90c8; color: #a8d0f0; background: #1e2a36; }

@@ -40,8 +40,8 @@ check('zone_geometry', Objective.area === 13 && Objective.needCount === 8 && Obj
 occupy(0);
 frame();
 check('zone_control_counts', Objective.counts[0] === 13 && Math.round(Objective.share[0]) === 100 &&
-	Objective.control === 1 && Objective.hold === 1 && Objective.state === HOLD_ACTIVE,
-	`share=${Objective.share[0].toFixed(1)} hold=${Objective.hold}`);
+	Objective.control === 1 && Math.abs(Objective.hold - 100 / 55) < 0.01 && Objective.state === HOLD_ACTIVE,
+	`share=${Objective.share[0].toFixed(1)} hold=${Objective.hold.toFixed(2)}`);
 
 setup({ holdTarget: 0.1 });
 occupy(0);
@@ -70,9 +70,9 @@ const firstPlayer = Objective.player;
 Settings.paint = 1;
 occupy(1);
 frame();
-check('player_switch_resets', Objective.player === 1 && Objective.hold === 1 &&
+check('player_switch_resets', Objective.player === 1 && Math.abs(Objective.hold - 100 / 55) < 0.01 &&
 	firstPlayer === 0 && Objective.captures === 1,
-	`player=${Objective.player} hold=${Objective.hold}`);
+	`player=${Objective.player} hold=${Objective.hold.toFixed(2)}`);
 
 setup();
 occupy(0);
@@ -99,6 +99,31 @@ frame();
 check('target_change_retunes_goal', targetFrames === 60 && Objective.target === 3 &&
 	Objective.state === HOLD_DONE,
 	`target=${targetFrames}->${Objective.target} state=${Objective.state}`);
+
+function occupyCount(player, count) {
+	for (let c = 0; c < 3; c++) Field.ch[c].fill(0);
+	for (let k = 0; k < count; k++) Field.ch[player][Objective.idx[k]] = 255 * FP_ONE;
+}
+
+setup();
+occupyCount(0, 5);
+frame();
+const partialRate = Objective.share[0] / 55;
+check('continuous_partial_share_scores', Objective.control === 0 && Math.abs(Objective.rate - partialRate) < 0.01 &&
+	Math.abs(Objective.score - partialRate) < 0.01 && Objective.hold > 0 && Objective.state === HOLD_ACTIVE,
+	`share=${Objective.share[0].toFixed(1)} rate=${Objective.rate.toFixed(2)} score=${Objective.score.toFixed(2)} hold=${Objective.hold.toFixed(2)}`);
+
+setup();
+occupyCount(0, 5);
+for (let i = 0; i < 10; i++) frame();
+check('continuous_score_accumulates_below_threshold', Objective.control === 0 && Objective.score > 5 && Objective.hold > 0,
+	`score=${Objective.score.toFixed(1)} hold=${Objective.hold.toFixed(1)} share=${Objective.share[0].toFixed(1)}`);
+
+setup();
+occupyCount(0, 4);
+frame();
+check('continuous_low_share_drains', Objective.control === 0 && Objective.hold === 0 && Objective.score > 0,
+	`share=${Objective.share[0].toFixed(1)} hold=${Objective.hold.toFixed(2)} score=${Objective.score.toFixed(2)}`);
 
 console.log(`failures=${failures}`);
 process.exit(failures ? 1 : 0);

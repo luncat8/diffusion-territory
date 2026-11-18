@@ -16,7 +16,10 @@ const HUD = {
 	picks: [],
 	zBars: [],
 	solveBtn: null,
+	previewBtn: null,
 	revertBtn: null,
+	previewing: false,
+	whySaved: null,
 	why: null,
 	whyHead: null,
 	whyNotes: null,
@@ -129,15 +132,34 @@ const HUD = {
 		HUD.solveBtn = HUD.el('button', 'hud-solve', 'solve');
 		HUD.solveBtn.type = 'button';
 		HUD.solveBtn.id = 'hud-solve';
-		HUD.solveBtn.title = 'apply the suggested settings and mark every control that changes';
+		HUD.solveBtn.title = 'apply the suggested settings and mark every control that changes; hover to preview them without applying';
 		HUD.solveBtn.addEventListener('click', () => HUD.solve());
+		HUD.solveBtn.addEventListener('mouseenter', HUD.previewOn);
+		HUD.solveBtn.addEventListener('mouseleave', HUD.previewOff);
+		HUD.solveBtn.addEventListener('focus', HUD.previewOn);
+		HUD.solveBtn.addEventListener('blur', HUD.previewOff);
+		HUD.previewBtn = HUD.el('button', 'hud-preview', '👁');
+		HUD.previewBtn.type = 'button';
+		HUD.previewBtn.id = 'hud-preview';
+		HUD.previewBtn.title = 'press and hold to preview the suggested settings without applying them';
+		HUD.previewBtn.addEventListener('pointerdown', HUD.previewOn);
+		HUD.previewBtn.addEventListener('pointerup', HUD.previewOff);
+		HUD.previewBtn.addEventListener('pointercancel', HUD.previewOff);
+		HUD.previewBtn.addEventListener('pointerleave', HUD.previewOff);
+		HUD.previewBtn.addEventListener('blur', HUD.previewOff);
+		HUD.previewBtn.addEventListener('keydown', e => {
+			if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); HUD.previewOn(); }
+		});
+		HUD.previewBtn.addEventListener('keyup', e => {
+			if (e.key === ' ' || e.key === 'Enter') HUD.previewOff();
+		});
 		HUD.revertBtn = HUD.el('button', 'hud-revert', 'revert');
 		HUD.revertBtn.type = 'button';
 		HUD.revertBtn.id = 'hud-revert';
 		HUD.revertBtn.title = 'restore the settings from before the suggestion';
 		HUD.revertBtn.hidden = true;
 		HUD.revertBtn.addEventListener('click', HUD.revert);
-		solveRow.append(HUD.solveBtn, HUD.revertBtn);
+		solveRow.append(HUD.solveBtn, HUD.previewBtn, HUD.revertBtn);
 		focus.append(solveRow);
 		focus.append(HUD.whyPanel());
 
@@ -186,6 +208,7 @@ const HUD = {
 	},
 
 	startTask(headline, note) {
+		HUD.previewOff();
 		Solution.clear();
 		Controls.unflash();
 		Main.reset();
@@ -198,7 +221,43 @@ const HUD = {
 		return SCENES[Settings.scene].name + ' · ' + View.names[Settings.paint] + ' pigment · hold ' + Settings.holdTarget + ' s';
 	},
 
+	// hover and press-and-hold preview the suggestion without writing Settings; the why panel is saved and restored
+	previewOn() {
+		if (HUD.previewing) return;
+		HUD.previewing = true;
+		HUD.whySaved = {
+			head: HUD.whyHead.textContent,
+			notes: Array.from(HUD.whyNotes.children).map(n => n.textContent),
+			changed: HUD.whyChanged.textContent,
+			hidden: HUD.why.hidden,
+		};
+		const plan = Solution.suggest(Settings, Objective);
+		Controls.preview(plan.edits);
+		HUD.whyHead.textContent = 'preview · ' + plan.headline;
+		HUD.whyNotes.replaceChildren();
+		for (const note of plan.notes) HUD.whyNotes.append(HUD.el('div', 'hud-why-note', note));
+		HUD.whyChanged.textContent = plan.edits.length ? 'would change · ' + plan.edits.map(Controls.changeText).join(' · ') : '';
+		HUD.why.hidden = false;
+		HUD.previewBtn.classList.add('on');
+	},
+
+	previewOff() {
+		if (!HUD.previewing) return;
+		HUD.previewing = false;
+		Controls.unpreview();
+		HUD.previewBtn.classList.remove('on');
+		const saved = HUD.whySaved;
+		HUD.whySaved = null;
+		if (!saved) return;
+		HUD.whyHead.textContent = saved.head;
+		HUD.whyNotes.replaceChildren();
+		for (const note of saved.notes) HUD.whyNotes.append(HUD.el('div', 'hud-why-note', note));
+		HUD.whyChanged.textContent = saved.changed;
+		HUD.why.hidden = saved.hidden;
+	},
+
 	solve(quiet) {
+		HUD.previewOff();
 		const plan = Solution.apply(Settings, Objective);
 		Controls.refresh();
 		if (!quiet) Controls.flash(plan.edits);
@@ -217,6 +276,7 @@ const HUD = {
 	},
 
 	revert() {
+		HUD.previewOff();
 		const plan = Solution.revert(Settings);
 		if (!plan) return;
 		Controls.refresh();
@@ -308,7 +368,8 @@ const HUD = {
 			View.names[1] + ' ' + HUD.pct(o.share[1]) + '%  ' +
 			View.names[2] + ' ' + HUD.pct(o.share[2]) + '%  open ' + HUD.pct(100 - o.share[0] - o.share[1] - o.share[2]) + '%';
 		HUD.goalLine.textContent = 'you ' + HUD.pct(o.share[p]) + '% · need ' + NEED_PCT + '% · margin ' +
-			HUD.signed(margin) + 'pp · trend ' + HUD.signed(o.trend[p]) + '%/s · peak ' + HUD.pct(o.peak[p]) + '%';
+			HUD.signed(margin) + 'pp · trend ' + HUD.signed(o.trend[p]) + '%/s · peak ' + HUD.pct(o.peak[p]) + '% · score ' +
+			(o.score / 60).toFixed(1) + 's · rate ' + o.rate.toFixed(2) + '×';
 		HUD.history.textContent = 'best ' + (o.best / 60).toFixed(1) + 's · captures ' + o.captures +
 			' · losses ' + o.losses + ' · lead flips ' + o.flips;
 		HUD.run.textContent = 'elapsed ' + HUD.clock(o.elapsed) + ' · in control ' +

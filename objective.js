@@ -23,6 +23,8 @@ const Objective = {
 	target: 1,
 	hold: 0,
 	best: 0,
+	score: 0,
+	rate: 0,
 	elapsed: 0,
 	heldAt: 0,
 	control: 0,
@@ -68,6 +70,8 @@ const Objective = {
 		this.target = Math.max(1, Math.round(s.holdTarget * 60));
 		this.hold = 0;
 		this.best = 0;
+		this.score = 0;
+		this.rate = 0;
 		this.elapsed = 0;
 		this.heldAt = 0;
 		this.control = 0;
@@ -145,20 +149,20 @@ const Objective = {
 		this.elapsed++;
 	},
 
+	// hold fills at share/need per frame and drains on the deficit, so partial share still moves the bar
 	advance() {
-		if (this.control) {
-			this.state = HOLD_ACTIVE;
-			this.hold++;
-			if (this.hold >= this.target) {
-				this.hold = this.target;
-				this.heldAt = this.elapsed;
-				this.state = HOLD_DONE;
-			}
+		const rate = this.share[this.player] / NEED_PCT;
+		this.rate = rate;
+		this.score += rate;
+		this.hold += rate >= 1 ? rate : rate - HOLD_DECAY * (1 - rate);
+		if (this.hold < 0) this.hold = 0;
+		if (this.hold >= this.target) {
+			this.hold = this.target;
+			this.heldAt = this.elapsed;
+			this.state = HOLD_DONE;
 			return;
 		}
-		this.hold -= HOLD_DECAY;
-		if (this.hold < 0) this.hold = 0;
-		if (!this.hold) this.state = HOLD_CAPTURE;
+		this.state = this.hold > 0 ? HOLD_ACTIVE : HOLD_CAPTURE;
 	},
 
 	trendStep() {
