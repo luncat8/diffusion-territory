@@ -54,7 +54,15 @@ check('field_init', scope('Field').n === 128 * 128, `n=${scope('Field').n}`);
 check('scene_presets', doc.querySelectorAll('#scene-select option').length === 6 &&
 	doc.getElementById('scene-select').value === '0', `scene=${doc.getElementById('scene-select').value}`);
 const ranges = doc.querySelectorAll('#rows input[type=range]');
-check('sliders', ranges.length === 27, `rows=${ranges.length}`);
+check('sliders', ranges.length === 28, `rows=${ranges.length}`);
+const speedSlider = doc.getElementById('ctrl-simSpeed');
+function setSpeed(speed) {
+	speedSlider.value = speed;
+	speedSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
+}
+const speedOutput = speedSlider.closest('.row').querySelector('output');
+check('sim_speed_defaults', scope('Settings').simSpeed === 0.125 && speedSlider.value === '0.125' &&
+	speedOutput.textContent === '0.125×' && !new URL(window.location.href).searchParams.has('dt.simSpeed'), speedOutput.textContent);
 check('mix_checkboxes', ['mix-all', 'mix-rg-on', 'mix-rb-on', 'mix-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
 check('react_checkboxes', ['react-all', 'react-rg-on', 'react-rb-on', 'react-gb-on'].every(id => !!doc.getElementById(id)), 'rg rb gb all');
 check('react_mode_buttons', ['mode-mutual', 'mode-majority', 'mode-convert', 'mode-absorb'].every(id => !!doc.getElementById(id)), 'four modes');
@@ -97,6 +105,7 @@ const targetSelect = doc.getElementById('hud-target');
 targetSelect.value = '30';
 targetSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
 check('hud_target_binds', scope('Settings').holdTarget === 30 && scope('Objective').target === 1800 &&
+	targetSelect.selectedOptions[0].textContent === '30 sim s' &&
 	new URL(window.location.href).searchParams.get('dt.holdTarget') === '30',
 	`target=${scope('Objective').target} url=${window.location.search}`);
 targetSelect.value = '20';
@@ -190,7 +199,7 @@ check('click_paints', scope('Field').ch[0][cell] === 255 * scope('FP_ONE'), `src
 mouse('mousedown', 400, 400, { button: 2 });
 check('right_click_erases', scope('Field').ch[0][cell] === 0, `src=${scope('Field').src[cell]}`);
 
-const slider = doc.querySelectorAll('#rows input[type=range]')[0];
+const slider = doc.getElementById('ctrl-gasSpeed');
 slider.value = '35';
 slider.dispatchEvent(new window.Event('input', { bubbles: true }));
 check('slider_binds', scope('Settings').gasSpeed === 35, `gasSpeed=${scope('Settings').gasSpeed}`);
@@ -295,24 +304,27 @@ sceneSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
 const tuned = doc.getElementById('ctrl-gasSpeed');
 tuned.value = '42';
 tuned.dispatchEvent(new window.Event('input', { bubbles: true }));
+setSpeed(0.5);
 doc.getElementById('pause').click();
 const saved = new URL(window.location.href);
 check('url_scene_relative', saved.searchParams.get('dt.scene') === '2' && saved.searchParams.get('dt.gasSpeed') === '42' &&
-	!saved.searchParams.has('dt.reactMode') && saved.searchParams.get('dt.paused') === '1', saved.search);
+	saved.searchParams.get('dt.simSpeed') === '0.5' && !saved.searchParams.has('dt.reactMode') &&
+	saved.searchParams.get('dt.paused') === '1', saved.search);
 const restored = new JSDOM(html, { url: saved.href, runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
-check('url_reload', restored.window.eval('Settings.scene === 2 && Settings.gasSpeed === 42 && Settings.reactMode === 2 && Settings.paused === 1') &&
-	restored.window.document.getElementById('ctrl-gasSpeed').value === '42', 'scene, profile, overrides, controls');
+check('url_reload', restored.window.eval('Settings.scene === 2 && Settings.gasSpeed === 42 && Settings.reactMode === 2 && Settings.paused === 1 && Settings.simSpeed === 0.5') &&
+	restored.window.document.getElementById('ctrl-gasSpeed').value === '42' &&
+	restored.window.document.getElementById('ctrl-simSpeed').value === '0.5', 'scene, profile, overrides, controls');
 restored.window.close();
 const fileDom = new JSDOM(html, { url: 'file:///tmp/index.html', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
-const fileSlider = fileDom.window.document.getElementById('ctrl-gasSpeed');
-fileSlider.value = '42';
+const fileSlider = fileDom.window.document.getElementById('ctrl-simSpeed');
+fileSlider.value = '0.25';
 fileSlider.dispatchEvent(new fileDom.window.Event('input', { bubbles: true }));
 const fileReload = new JSDOM(html, { url: fileDom.window.location.href, runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
-check('url_file_roundtrip', fileReload.window.eval('Settings.gasSpeed === 42'), fileDom.window.location.href);
+check('url_file_roundtrip', fileReload.window.eval('Settings.simSpeed === 0.25'), fileDom.window.location.href);
 fileDom.window.close();
 fileReload.window.close();
-const invalid = new JSDOM(html, { url: 'https://example.test/?dt.scene=999&dt.gasSpeed=NaN&dt.mixRate.0=999', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
-check('url_invalid_ignored', invalid.window.eval('Settings.scene === 0 && Settings.gasSpeed === 65 && Settings.mixRate[0] === 50'), 'invalid values');
+const invalid = new JSDOM(html, { url: 'https://example.test/?dt.scene=999&dt.gasSpeed=NaN&dt.mixRate.0=999&dt.simSpeed=0.2', runScripts: 'dangerously', pretendToBeVisual: true, beforeParse: stubCanvas });
+check('url_invalid_ignored', invalid.window.eval('Settings.scene === 0 && Settings.gasSpeed === 65 && Settings.mixRate[0] === 50 && Settings.simSpeed === 0.125'), 'invalid values');
 invalid.window.close();
 tuned.value = '60';
 tuned.dispatchEvent(new window.Event('input', { bubbles: true }));
@@ -320,6 +332,8 @@ check('url_restored_default_removed', !new URL(window.location.href).searchParam
 doc.getElementById('pause').click();
 sceneSelect.value = '0';
 sceneSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
+
+check('sim_speed_survives_scene_change', scope('Settings').simSpeed === 0.5 && speedOutput.textContent === '0.5×', speedOutput.textContent);
 
 const taskRoll = scope('Task').roll;
 const taskRolls = [4, 2, 3];
@@ -330,17 +344,17 @@ const taskSettings = scope('Settings');
 const taskUrl = new URL(window.location.href);
 check('new_task_generates_clean_task', taskSettings.scene === 5 && taskSettings.paint === 2 &&
 	taskSettings.holdTarget === 60 && taskSettings.rivalPressure === 1 && taskSettings.brush === 1 && taskSettings.paused === 0 &&
-	taskSettings.gasSpeed === 50 && taskSettings.sourceRate === 9 && taskSettings.reactMode === 1 &&
+	taskSettings.gasSpeed === 50 && taskSettings.sourceRate === 9 && taskSettings.reactMode === 1 && taskSettings.simSpeed === 0.5 &&
 	scope('Objective').player === 2 && scope('Objective').target === 3600 && scope('Loop').frame === 0 &&
 	scope('Solution').last === null && doc.getElementById('hud-revert').hidden &&
 	doc.getElementById('scene-select').value === '5' && doc.getElementById('hud-target').value === '60' &&
 	doc.getElementById('hud-rivals').textContent === 'rivals on' &&
 	hud.querySelector('.hud-task-name').textContent.includes('Growing colonies') &&
-	hud.querySelector('.hud-task-name').textContent.includes('B pigment · hold 60 s') &&
+	hud.querySelector('.hud-task-name').textContent.includes('B pigment · hold 60 sim s') &&
 	!doc.getElementById('hud-why').hidden && doc.getElementById('hud-why').textContent.includes('new task') &&
 	taskUrl.searchParams.get('dt.scene') === '5' && taskUrl.searchParams.get('dt.paint') === '2' &&
 	taskUrl.searchParams.get('dt.holdTarget') === '60' && taskUrl.searchParams.get('dt.rivalPressure') === '1' &&
-	!taskUrl.searchParams.has('dt.gasSpeed'),
+	taskUrl.searchParams.get('dt.simSpeed') === '0.5' && !taskUrl.searchParams.has('dt.gasSpeed'),
 	`scene=${taskSettings.scene} paint=${taskSettings.paint} target=${taskSettings.holdTarget} url=${taskUrl.search}`);
 
 doc.getElementById('hud-solve').click();
@@ -351,17 +365,17 @@ guiSlider.dispatchEvent(new window.Event('input', { bubbles: true }));
 doc.getElementById('hud-reset-gui').click();
 const guiUrl = new URL(window.location.href);
 check('reset_gui_restores_scene_defaults', solvedRows > 0 && doc.querySelectorAll('.solved').length === 0 &&
-	taskSettings.scene === 5 && taskSettings.paint === 0 && taskSettings.holdTarget === 20 &&
+	taskSettings.scene === 5 && taskSettings.paint === 0 && taskSettings.holdTarget === 20 && taskSettings.simSpeed === 0.125 &&
 	taskSettings.rivalPressure === 0 && taskSettings.brush === 1 && taskSettings.paused === 0 && taskSettings.gasSpeed === 50 &&
 	taskSettings.sourceRate === 9 && taskSettings.reactMode === 1 && scope('Solution').last === null &&
 	scope('Objective').player === 0 && scope('Objective').target === 1200 && scope('Loop').frame === 0 &&
 	doc.getElementById('hud-revert').hidden && doc.getElementById('hud-target').value === '20' &&
 	doc.getElementById('hud-rivals').textContent === 'rivals off' &&
-	doc.getElementById('ctrl-gasSpeed').value === '50' &&
+	doc.getElementById('ctrl-gasSpeed').value === '50' && speedOutput.textContent === '0.125×' &&
 	doc.getElementById('hud-why').textContent.includes('GUI defaults') &&
 	guiUrl.searchParams.get('dt.scene') === '5' && !guiUrl.searchParams.has('dt.paint') &&
 	!guiUrl.searchParams.has('dt.holdTarget') && !guiUrl.searchParams.has('dt.gasSpeed') &&
-	!guiUrl.searchParams.has('dt.reactMode') && !guiUrl.searchParams.has('dt.rivalPressure'),
+	!guiUrl.searchParams.has('dt.reactMode') && !guiUrl.searchParams.has('dt.rivalPressure') && !guiUrl.searchParams.has('dt.simSpeed'),
 	`rows=${solvedRows} paint=${taskSettings.paint} target=${taskSettings.holdTarget} url=${guiUrl.search}`);
 
 doc.getElementById('hud-rivals').click();
@@ -378,8 +392,43 @@ check('rival_toggle_off', taskSettings.rivalPressure === 0 &&
 	!new URL(window.location.href).searchParams.has('dt.rivalPressure'), `mode=${taskSettings.rivalPressure}`);
 
 setTimeout(() => {
-	check('raf_loop', scope('Loop').frame > 0, `frames=${scope('Loop').frame}`);
+	const loop = scope('Loop');
+	const objective = scope('Objective');
+	check('raf_loop', loop.frame > 0, `frames=${loop.frame}`);
 	check('stats_panel', doc.getElementById('stats').textContent.length > 0, 'written');
+	window.cancelAnimationFrame(loop.raf);
+	function draw(dt) {
+		loop.tick(loop.last + dt);
+		window.cancelAnimationFrame(loop.raf);
+	}
+
+	const reset = doc.getElementById('reset');
+	reset.click();
+	for (let i = 0; i < 16; i++) draw(8.5);
+	const slow = loop.frame;
+	check('sim_speed_default_ticks', slow === 1 && objective.elapsed === slow, `ticks=${slow} elapsed=${objective.elapsed}`);
+	setSpeed(1);
+	for (let i = 0; i < 8; i++) draw(17);
+	const fast = loop.frame;
+	check('sim_speed_full_ticks', fast - slow === 8 && objective.elapsed === fast, `ticks=${fast - slow} elapsed=${objective.elapsed}`);
+
+	draw(200);
+	setSpeed(0.125);
+	draw(17);
+	const beforePause = loop.frame;
+	check('sim_speed_no_backlog', beforePause - fast === 2, `ticks=${beforePause - fast}`);
+	const pause = doc.getElementById('pause');
+	pause.click();
+	draw(200);
+	doc.getElementById('step').click();
+	draw(200);
+	check('paused_single_tick', loop.frame === beforePause + 1 && objective.elapsed === loop.frame, `ticks=${loop.frame - beforePause}`);
+	pause.click();
+	draw(2000);
+	check('sim_speed_long_gap', loop.frame === beforePause + 1, `ticks=${loop.frame - beforePause - 1}`);
+	reset.click();
+	draw(120);
+	check('sim_reset_clears_accumulator', loop.frame === 0 && objective.elapsed === 0, `ticks=${loop.frame} elapsed=${objective.elapsed}`);
 	window.close();
 	console.log(`failures=${failures}`);
 	process.exit(failures ? 1 : 0);

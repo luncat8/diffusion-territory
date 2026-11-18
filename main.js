@@ -49,7 +49,7 @@ const Main = {
 	reset() {
 		Field.reset();
 		Gas.reset();
-		Loop.frame = 0;
+		Loop.reset();
 		Presets.seed(Settings.scene);
 		Field.analyze();
 		Field.caps(Settings.capBase, Settings.capTerritory, Settings.maxMass);

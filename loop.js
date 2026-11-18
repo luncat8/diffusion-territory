@@ -1,5 +1,7 @@
-// owns: the 60 Hz animation loop, stats cadence, and objective HUD cadence
+// owns: fixed-step simulation pacing, stats cadence, and objective HUD cadence
 // edit for: sim rate, stats refresh interval, or HUD refresh interval
+
+const MAX_TICKS_PER_FRAME = 2;
 
 const Loop = {
 	frame: 0,
@@ -17,7 +19,11 @@ const Loop = {
 		Loop.raf = requestAnimationFrame(Loop.tick);
 	},
 
-	// 60 sim steps per second whatever the display does, at most two per frame
+	reset() {
+		Loop.frame = 0;
+		Loop.acc = 0;
+	},
+
 	tick(now) {
 		Loop.raf = requestAnimationFrame(Loop.tick);
 		Loop.win++;
@@ -36,9 +42,11 @@ const Loop = {
 			View.stats($('stats'));
 		}
 		if (!Settings.paused) {
-			Loop.acc += dt > 250 ? Loop.step : dt;
+			// Scale how often ticks run, not the physics step; don't bank work after a stall.
+			const ms = dt > 250 ? Loop.step : dt;
+			Loop.acc += Math.min(ms * Settings.simSpeed, MAX_TICKS_PER_FRAME * Loop.step);
 			let n = 0;
-			while (Loop.acc >= Loop.step && n < 2) {
+			while (Loop.acc >= Loop.step && n < MAX_TICKS_PER_FRAME) {
 				Tick.run(Settings);
 				Loop.acc -= Loop.step;
 				n++;

@@ -14,7 +14,9 @@ const Task = {
 		const scene = (s.scene + 1 + Task.roll(SCENES.length - 1)) % SCENES.length;
 		const paint = Task.roll(TASK_PLAYERS);
 		const target = TASK_TARGETS[Task.roll(TASK_TARGETS.length)];
+		const simSpeed = s.simSpeed;
 		Task.defaults(s, scene);
+		s.simSpeed = simSpeed;
 		s.paint = paint;
 		s.holdTarget = target;
 		s.rivalPressure = 1;

@@ -140,9 +140,9 @@ getObj().data().action()
 
 ## current workstream
 
-plans 0.2.0–0.2.3, 0.3.1, 0.4.0–0.4.2 (archive/); constraints: planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 substeps/frame, mass-exact integer edge transfers + Float64 accumulators.
+plans 0.2.0–0.2.3, 0.3.1, 0.4.0–0.4.3 (archive/); constraints: planar Q12.12 Int32 (`Field.ch[0..2]` on `Field.v`), max 2 gas substeps/tick and 2 ticks/frame, mass-exact integer edge transfers + Float64 accumulators.
 	after sim change: checks.js + rival-checks.js; after UI/boot change: dom-smoke.js.
-latest: 0.4.2 deterministic rival pressure sources in the ring, task toggle/URL and continuous-score measurement; 0.4.1 solution button, changed-control highlight, explanation/revert, task actions and pair-mask activation; 0.4.0 capture-and-hold ring/HUD and scene bench; 0.3.1 local production, 5% control threshold, smooth reactions, directional gradient response; `npm run checks` includes concentration, objective, solution and rival regressions.
+latest: 0.4.3 shareable global pace at 0.125× by default and sim-time HUD; 0.4.2 deterministic rival pressure sources in the ring, task toggle/URL and continuous-score measurement; 0.4.1 solution button, changed-control highlight, explanation/revert, task actions and pair-mask activation; 0.4.0 capture-and-hold ring/HUD and scene bench; 0.3.1 local production, 5% control threshold, smooth reactions, directional gradient response; `npm run checks` includes concentration, objective, solution and rival regressions.
 
 ## housekeeping
 

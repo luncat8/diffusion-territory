@@ -82,7 +82,7 @@ const HUD = {
 		HUD.resetGuiBtn = HUD.el('button', 'hud-task', 'reset GUI');
 		HUD.resetGuiBtn.type = 'button';
 		HUD.resetGuiBtn.id = 'hud-reset-gui';
-		HUD.resetGuiBtn.title = 'keep this scene; restore default sliders, R pigment, brush and 20 s target';
+		HUD.resetGuiBtn.title = 'keep this scene; restore default sliders, R pigment, brush and 20 sim s target';
 		HUD.resetGuiBtn.addEventListener('click', HUD.resetGui);
 		HUD.rivalsBtn = HUD.el('button', 'hud-task hud-rivals', 'rivals off');
 		HUD.rivalsBtn.type = 'button';
@@ -103,7 +103,7 @@ const HUD = {
 		main.append(bar);
 
 		const line = HUD.el('div', 'hud-line');
-		HUD.holdLine = HUD.el('span', 'hud-hold', '0.0 / 20 s');
+		HUD.holdLine = HUD.el('span', 'hud-hold');
 		line.append(HUD.holdLine);
 		main.append(line);
 
@@ -177,7 +177,7 @@ const HUD = {
 		for (const value of TASK_TARGETS) {
 			const option = document.createElement('option');
 			option.value = value;
-			option.textContent = value + ' s';
+			option.textContent = value + ' sim s';
 			HUD.target.append(option);
 		}
 		HUD.target.addEventListener('change', HUD.setTarget);
@@ -233,7 +233,7 @@ const HUD = {
 	},
 
 	taskText() {
-		return SCENES[Settings.scene].name + ' · ' + View.names[Settings.paint] + ' pigment · hold ' + Settings.holdTarget + ' s';
+		return SCENES[Settings.scene].name + ' · ' + View.names[Settings.paint] + ' pigment · hold ' + Settings.holdTarget + ' sim s';
 	},
 
 	// hover and press-and-hold preview the suggestion without writing Settings; the why panel is saved and restored
@@ -335,7 +335,7 @@ const HUD = {
 		if (!Array.from(HUD.target.options).some(o => +o.value === value)) {
 			const option = document.createElement('option');
 			option.value = value;
-			option.textContent = value + ' s';
+			option.textContent = value + ' sim s';
 			HUD.target.append(option);
 		}
 		HUD.target.value = value;
@@ -384,17 +384,17 @@ const HUD = {
 		const ratio = o.holdRatio();
 		HUD.fill.style.width = (ratio * 100).toFixed(1) + '%';
 		HUD.fill.style.background = View.zoneColors[p];
-		HUD.holdLine.textContent = (o.hold / 60).toFixed(1) + ' / ' + (o.target / 60).toFixed(0) + ' s';
+		HUD.holdLine.textContent = (o.hold / 60).toFixed(1) + ' / ' + (o.target / 60).toFixed(0) + ' sim s';
 		HUD.zoneLine.textContent = 'zone  ' +
 			View.names[0] + ' ' + HUD.pct(o.share[0]) + '%  ' +
 			View.names[1] + ' ' + HUD.pct(o.share[1]) + '%  ' +
 			View.names[2] + ' ' + HUD.pct(o.share[2]) + '%  open ' + HUD.pct(100 - o.share[0] - o.share[1] - o.share[2]) + '%';
 		HUD.goalLine.textContent = 'you ' + HUD.pct(o.share[p]) + '% · need ' + NEED_PCT + '% · margin ' +
-			HUD.signed(margin) + 'pp · trend ' + HUD.signed(o.trend[p]) + '%/s · peak ' + HUD.pct(o.peak[p]) + '% · score ' +
-			(o.score / 60).toFixed(1) + 's · rate ' + o.rate.toFixed(2) + '×';
-		HUD.history.textContent = 'best ' + (o.best / 60).toFixed(1) + 's · captures ' + o.captures +
+			HUD.signed(margin) + 'pp · trend ' + HUD.signed(o.trend[p]) + '%/sim s · peak ' + HUD.pct(o.peak[p]) + '% · score ' +
+			(o.score / 60).toFixed(1) + ' sim s · rate ' + o.rate.toFixed(2) + '×';
+		HUD.history.textContent = 'best ' + (o.best / 60).toFixed(1) + ' sim s · captures ' + o.captures +
 			' · losses ' + o.losses + ' · lead flips ' + o.flips;
-		HUD.run.textContent = 'elapsed ' + HUD.clock(o.elapsed) + ' · in control ' +
+		HUD.run.textContent = 'sim elapsed ' + HUD.clock(o.elapsed) + ' · in control ' +
 			HUD.pct(o.controlFrames * 100 / Math.max(1, o.elapsed)) + '%' + (o.state === 2 ? ' · held at ' + HUD.clock(o.heldAt) : '');
 		HUD.hint.textContent = HUD.tip(p, rival);
 		HUD.status.textContent = o.state === 2 ? 'HELD' : o.control ? 'HOLDING' : 'CAPTURE';
@@ -417,7 +417,7 @@ const HUD = {
 			return 'below ' + NEED_PCT + '% — open mix/reaction with ' + View.names[rival] + ' or raise production';
 		}
 		return 'holding — margin ' + HUD.signed(o.share[p] - o.share[rival]) + 'pp, rival trend ' +
-			HUD.signed(o.trend[rival]) + '%/s';
+			HUD.signed(o.trend[rival]) + '%/sim s';
 	},
 
 	pct(v) {

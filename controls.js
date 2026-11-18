@@ -9,6 +9,7 @@ const MODE_HINTS = [
 ];
 
 const CONTROLS = [
+	{ key: 'simSpeed', label: 'Simulation speed', min: 0.125, max: 1, step: 0.125, unit: '×', hint: 'pace of the whole simulation, including rivals and the hold timer; 0.125× gives 8 real seconds per sim second' },
 	{ key: 'gasSpeed', label: 'Gas pressure speed', short: 'pressure', min: 0, max: 100, step: 1, unit: '%', hint: 'pressure wave propagation speed; 0 stops gas flow' },
 	{ key: 'gasDamping', label: 'Gas viscosity', short: 'viscosity', min: 0, max: 100, step: 1, unit: '%', hint: 'momentum drag; low = bouncy acoustic waves, high = thick viscous drift' },
 	{ key: 'mixRate', label: 'Mix into other color', group: 'mix', kind: 'rate', hint: 'permeability at which each color pair enters the other color; unchecked or 0% acts as a wall' },
@@ -21,15 +22,15 @@ const CONTROLS = [
 		key: 'response', index, label, min: -100, max: 100, step: 1, unit: '%',
 		hint: 'positive: move up rival gradient; negative: move away; requires pair mixing; 0 ignores rival',
 	})),
-	{ key: 'depletion', label: 'Depletion', min: 0, max: 5, step: 0.1, unit: '/f', hint: 'color removed from every cell each frame (1.0 = 1 of 255/f); >0 forms gradient, 0 equalizes' },
-	{ key: 'playerFlow', label: 'Player supply', min: 0, max: 2000, step: 20, unit: '/f', hint: 'total growth per player per tick shared across eligible cells; 0 = unlimited' },
+	{ key: 'depletion', label: 'Depletion', min: 0, max: 5, step: 0.1, unit: '/tick', hint: 'color removed from every cell per tick; >0 forms gradient, 0 equalizes' },
+	{ key: 'playerFlow', label: 'Player supply', min: 0, max: 2000, step: 20, unit: '/tick', hint: 'total growth per player per tick shared across eligible cells; 0 = unlimited' },
 	{ key: 'maxMass', label: 'Total color limit', min: 0, max: 2000, step: 20, unit: 'k', hint: 'maximum total pigment per player; 0 = unlimited' },
-	{ key: 'sourceRate', label: 'Cell production rate', short: 'production', min: 0, max: 255, step: 1, unit: '/f', hint: 'pigment per eligible cell per tick before fertility and saturation; 0 disables growth' },
+	{ key: 'sourceRate', label: 'Cell production rate', short: 'production', min: 0, max: 255, step: 1, unit: '/tick', hint: 'pigment per eligible cell per tick before fertility and saturation; 0 disables growth' },
 	{ key: 'capBase', label: 'Max color per cell', min: 0, max: 1023, step: 1, unit: '', hint: 'per-cell ceiling on a 16-cell territory; 0 = no limit' },
 	{ key: 'capTerritory', label: 'Small territory boost', min: 0, max: 100, step: 1, unit: '%', hint: 'how far a smaller territory raises the per-cell ceiling' },
 	{ key: 'brush', label: 'Pigment brush', short: 'brush', min: 0, max: 3, step: 1, unit: '', hint: 'pigment paint diameter in cells' },
 	{ key: 'showSources', label: 'Production overlay', min: 0, max: 1, step: 1, labels: ['off', 'on'], hint: 'mark all cells eligible to produce pigment; shared supply may still limit growth' },
-	{ key: 'substeps', label: 'Steps per frame', min: 1, max: 2, step: 1, unit: '', hint: 'physics passes per frame' },
+	{ key: 'substeps', label: 'Gas steps per tick', min: 1, max: 2, step: 1, unit: '', hint: 'gas transport passes per simulation tick; does not change the simulation clock' },
 ];
 
 // the focus block carries every setting a solution may write, so the objective GUI can solve it alone
@@ -172,6 +173,7 @@ const Controls = {
 		const input = document.createElement('input');
 		input.type = 'range';
 		input.id = prefix + '-' + def.key + (def.index === undefined ? '' : '-' + def.index);
+		input.setAttribute('aria-label', name.textContent);
 		input.title = def.hint;
 		input.min = def.min;
 		input.max = def.max;
